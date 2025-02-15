@@ -5,12 +5,14 @@ from dagger import Container, dag, Directory, Doc, function, object_type, Return
 class Workspace:
     """Workspace module for development environments"""
     ctr: Container
+    checker: str
 
     @classmethod
     async def create(
         cls,
         base_image: Annotated[str, Doc("Docker base image to use for workspace container")] = "alpine",
-        context: Annotated[Directory, Doc("The starting context for the workspace")] = dag.directory()
+        context: Annotated[Directory, Doc("The starting context for the workspace")] = dag.directory(),
+        checker: Annotated[str, Doc("The command to check if the workspace meets requirements")] = "echo true"
     ):
         ctr = (
             dag
@@ -19,7 +21,7 @@ class Workspace:
             .with_workdir("/app")
             .with_directory("/app", context)
         )
-        return cls(ctr=ctr)
+        return cls(ctr=ctr, checker=checker)
 
     @function
     async def read(
@@ -56,6 +58,18 @@ class Workspace:
     ) -> list[str]:
         """Returns the list of files in the workspace at the provided path"""
         return await self.ctr.directory(path).entries()
+
+    @function
+    async def check(
+        self
+    ) -> bool:
+        """Checks if the workspace meets the requirements"""
+        cmd = (
+            self.ctr
+            .with_exec(["sh", "-c", self.checker], expect=ReturnType.ANY)
+        )
+        return await cmd.exit_code() == 0
+
 
     @function
     async def exec(
