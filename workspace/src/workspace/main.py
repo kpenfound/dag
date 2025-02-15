@@ -70,7 +70,6 @@ class Workspace:
         )
         return await cmd.exit_code() == 0
 
-
     @function
     async def exec(
         self,
@@ -85,3 +84,10 @@ class Workspace:
             raise Exception(f"Command failed: {command}\nError: {await cmd.stderr()}")
         self.ctr = cmd # FIXME
         return self
+
+    @function
+    def container(
+        self
+    ) -> Container:
+        """Returns the container for the workspace"""
+        return self.ctr
