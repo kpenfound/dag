@@ -7,23 +7,30 @@ git_container = "alpine/git:v2.47.1"
 @object_type
 class FeatureBranch:
     """Feature Branch module for GitHub development"""
-    github_token: Annotated[Secret, Doc("GitHub Token")] | None = field(default=None)
-    branch_name: str | None
+    github_token: Annotated[Secret, Doc("GitHub Token")] = field(default=None)
+    branch_name: str
     is_fork: bool = False
-    branch: Annotated[Directory, Doc("A git repo")] | None = field(default=dag.directory())
+    branch: Annotated[Directory, Doc("A git repo")] = field(default=dag.directory())
     @classmethod
     async def create(
-        self,
-        upstream: str,
-        branch_name: str,
-        fork_name: str | None,
-        fork: bool = False
+        cls,
+        token: Annotated[Secret, Doc("The Github Token to use")],
+        upstream: Annotated[str, Doc("The upstream repository to branch from")],
+        branch_name: Annotated[str, Doc("The name of the branch to create")],
+        fork_name: Annotated[str, Doc("The name to give the created forked repo")] | None,
+        fork: Annotated[bool, Doc("Should the upstream repo be forked")] = False
     ) -> Self:
-        self.is_fork = fork
-        self.branch_name = branch_name
-        self.branch = dag.git(upstream).head().tree()
+        """Creates a feature branch from an upstream repository"""
+        # Set fork=True if we have a fork_name
+        if fork_name != None:
+            fork = True
+
+        self = cls(github_token = token, is_fork = fork, branch_name = branch_name, branch = dag.git(upstream).head().tree())
+
+        # Create the fork if specified
         if fork:
             self = await self.fork(upstream, fork_name)
+        # Create the branch
         self.branch = (
             self.env()
             .with_exec([
@@ -39,26 +46,31 @@ class FeatureBranch:
     @function
     def with_changes(
         self,
-        changes: Directory
+        changes: Annotated[Directory, Doc("The file changes to apply to the feature branch")]
     ) -> Self:
         """Apply a directory of changes to the branch"""
         self.branch = self.branch.with_directory(".", changes)
         return self
 
     @function
-    def with_github_token(
-        self,
-        token: Secret
-    ) -> Self:
-        """Sets the GitHub token"""
-        self.github_token = token
-        return self
+    async def diff(
+        self
+    ) -> str:
+        """Returns the diff of the branch"""
+        return await (
+            self.env()
+            .with_exec([
+                "git",
+                "diff",
+            ])
+            .stdout()
+        )
 
     @function
     async def pull_request(
         self,
-        title: str,
-        body: str
+        title: Annotated[str, Doc("The title of the pull request")],
+        body: Annotated[str, Doc("The body of the pull request")]
     ) -> str:
         """Creates a pull request on the branch with the provided title and body"""
         origin = await self.get_remote_url("origin")
@@ -106,9 +118,9 @@ class FeatureBranch:
     @function
     async def get_remote_url(
         self,
-        remote: str
+        remote: Annotated[str, Doc("The remote name to find the URL for")]
     ) -> str:
-        """Returns a remotes url"""
+        """Returns a remotes full url"""
         remote = await (
             self.env()
             .with_exec(["git", "remote", "get-url", remote])
@@ -121,6 +133,7 @@ class FeatureBranch:
 
     @function
     def env(self) -> Container:
+        """Returns a container with the necessary environment for git and gh"""
         return (
             dag.github(gh_cli_version)
             .container(
@@ -137,10 +150,10 @@ class FeatureBranch:
     @function
     async def fork(
         self,
-        upstream: str,
-        fork_name: str | None
+        upstream: Annotated[str, Doc("Upstream URL to fork")],
+        fork_name: Annotated[str, Doc("Optional name to give the fork")] | None
     ) -> Self:
-        """Forks a repository"""
+        """Sets the branch to a fork of a Github repository"""
         if fork_name is None:
             fork_name = upstream.split("/")[-1] + "-fork"
 
