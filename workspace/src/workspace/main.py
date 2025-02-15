@@ -75,7 +75,7 @@ class Workspace:
         self,
         command: Annotated[str, Doc("command to execute in the workspace")]
     ) -> Self:
-        """Executes a command in the workspace"""
+        """Executes a command in the workspace. Does not return the output of the command"""
         cmd = (
             self.ctr
             .with_exec(["sh", "-c", command], expect=ReturnType.ANY)
