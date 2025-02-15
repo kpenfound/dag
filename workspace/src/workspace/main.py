@@ -9,9 +9,16 @@ class Workspace:
     @classmethod
     async def create(
         cls,
-        base_image: Annotated[str, Doc("Docker base image to use for workspace container")] = "alpine"
+        base_image: Annotated[str, Doc("Docker base image to use for workspace container")] = "alpine",
+        context: Annotated[Directory, Doc("The starting context for the workspace")] = dag.directory()
     ):
-        ctr = dag.container().from_(base_image).with_workdir("/app")
+        ctr = (
+            dag
+            .container()
+            .from_(base_image)
+            .with_workdir("/app")
+            .with_directory("/app", context)
+        )
         return cls(ctr=ctr)
 
     @function
@@ -43,7 +50,7 @@ class Workspace:
         return self
 
     @function
-    async def list(
+    async def ls(
         self,
         path: Annotated[str, Doc("Path to get the list of files from")]
     ) -> list[str]:
