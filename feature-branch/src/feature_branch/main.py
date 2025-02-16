@@ -65,6 +65,7 @@ class FeatureBranch:
     ) -> Self:
         """Apply a directory of changes to the branch"""
         if keep_git == False:
+            self.branch = self.branch.without_directory(".git")
             changes = changes.without_directory(".git")
         self.branch = self.branch.with_directory(".", changes)
         return self
