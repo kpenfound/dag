@@ -6,6 +6,7 @@ class Workspace:
     """Workspace module for development environments"""
     ctr: Container
     checker: str
+    start: Directory
 
     @classmethod
     async def create(
@@ -21,7 +22,7 @@ class Workspace:
             .with_workdir("/app")
             .with_directory("/app", context)
         )
-        return cls(ctr=ctr, checker=checker)
+        return cls(ctr=ctr, checker=checker, start=context)
 
     @function
     async def read(
@@ -69,6 +70,18 @@ class Workspace:
             .with_exec(["sh", "-c", self.checker], expect=ReturnType.ANY)
         )
         return await cmd.exit_code() == 0
+
+    @function
+    async def diff(
+        self
+    ) -> str:
+        """Returns the changes in the workspace so far"""
+        start = dag.container().from_("alpine/git").with_workdir("/app").with_directory("/app", self.start)
+        # make sure start is a git directory
+        if ".git" not in await self.start.entries():
+            start = start.with_exec(["git", "init"]).with_exec(["git", "add", "."]).with_exec(["git", "commit", "-m", "'initial'"])
+        # return the git diff of the changes in the workspace
+        return await start.with_directory(".", self.ctr.directory(".")).with_exec(["git", "diff"]).stdout()
 
     @function
     async def exec(
