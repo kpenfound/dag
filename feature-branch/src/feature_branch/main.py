@@ -75,8 +75,10 @@ class FeatureBranch:
         """Creates a pull request on the branch with the provided title and body"""
         origin = await self.get_remote_url("origin")
         upstream = origin
+        head = f"{self.branch_name}"
         if self.is_fork:
             upstream = await self.get_remote_url("upstream")
+            head = f"{origin.split('/')[-2]}:{self.branch_name}"
 
         return await (
             self.env()
@@ -110,7 +112,7 @@ class FeatureBranch:
                 "--base",
                 "main",
                 "--head",
-                f"{origin.split('/')[-2]}:{self.branch_name}",
+                head,
             ])
             .stdout()
         )
