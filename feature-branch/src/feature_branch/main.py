@@ -58,6 +58,15 @@ class FeatureBranch:
         return self
 
     @function
+    def with_branch(
+        self,
+        branch: Annotated[Directory, Doc("The git repo to use as the branch")]
+    ) -> Self:
+        """Overwrites the branch"""
+        self.branch = branch
+        return self
+
+    @function
     def with_changes(
         self,
         changes: Annotated[Directory, Doc("The file changes to apply to the feature branch")],
