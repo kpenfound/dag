@@ -18,6 +18,7 @@ class FeatureBranch:
         token: Annotated[Secret, Doc("The Github Token to use")],
         upstream: Annotated[str, Doc("The upstream repository to branch from")],
         branch_name: Annotated[str, Doc("The name of the branch to create")],
+        base_ref: Annotated[str, Doc("base ref to branch off of")] | None,
         fork_name: Annotated[str, Doc("The name to give the created forked repo")] | None,
         fork: Annotated[bool, Doc("Should the upstream repo be forked")] = False
     ) -> Self:
@@ -26,7 +27,10 @@ class FeatureBranch:
         if fork_name != None:
             fork = True
 
-        self = cls(github_token = token, is_fork = fork, branch_name = branch_name, branch = dag.git(upstream).head().tree())
+        branch = dag.git(upstream).head().tree()
+        if base_ref is not None:
+            branch = dag.git(upstream).ref(base_ref).tree()
+        self = cls(github_token = token, is_fork = fork, branch_name = branch_name, branch = branch)
 
         # Create the fork if specified
         if fork:
