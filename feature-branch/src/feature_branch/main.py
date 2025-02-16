@@ -68,19 +68,11 @@ class FeatureBranch:
         )
 
     @function
-    async def pull_request(
+    async def push(
         self,
-        title: Annotated[str, Doc("The title of the pull request")],
-        body: Annotated[str, Doc("The body of the pull request")]
+        title: Annotated[str, Doc("The title of the commit")],
     ) -> str:
-        """Creates a pull request on the branch with the provided title and body"""
-        origin = await self.get_remote_url("origin")
-        upstream = origin
-        head = f"{self.branch_name}"
-        if self.is_fork:
-            upstream = await self.get_remote_url("upstream")
-            head = f"{origin.split('/')[-2]}:{self.branch_name}"
-
+        """Pushes the branch to the remote"""
         return await (
             self.env()
             .with_exec([
@@ -99,7 +91,29 @@ class FeatureBranch:
                 "push",
                 "origin",
                 self.branch_name,
-            ])
+            ]).stdout()
+        )
+
+    @function
+    async def pull_request(
+        self,
+        title: Annotated[str, Doc("The title of the pull request")],
+        body: Annotated[str, Doc("The body of the pull request")]
+    ) -> str:
+        """Creates a pull request on the branch with the provided title and body"""
+        origin = await self.get_remote_url("origin")
+        upstream = origin
+        head = f"{self.branch_name}"
+        if self.is_fork:
+            upstream = await self.get_remote_url("upstream")
+            head = f"{origin.split('/')[-2]}:{self.branch_name}"
+
+        # Push the branch
+        await self.push(title)
+
+        # Create the PR
+        return await (
+            self.env()
             .with_exec([
                 "gh",
                 "pr",
