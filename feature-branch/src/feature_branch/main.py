@@ -1,5 +1,6 @@
 from typing import Annotated, Self
 from dagger import Container, dag, Directory, Doc, field, function, object_type, Secret
+import time
 
 gh_cli_version = "2.66.1"
 git_container = "alpine/git:v2.47.1"
@@ -147,6 +148,7 @@ class FeatureBranch:
             .with_exec(["gh", "auth", "setup-git"])
             .with_exec(["git", "config", "--global", "user.name", "Marvin"])
             .with_exec(["git", "config", "--global", "user.email", "marvin@dagger.io"])
+            .with_env_variable("CACHE_BUSTER", str(int(time.time())))
         )
 
     @function
