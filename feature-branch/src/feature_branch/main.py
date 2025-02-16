@@ -51,10 +51,13 @@ class FeatureBranch:
     @function
     def with_changes(
         self,
-        changes: Annotated[Directory, Doc("The file changes to apply to the feature branch")]
+        changes: Annotated[Directory, Doc("The file changes to apply to the feature branch")],
+        keep_git: Annotated[bool, Doc("Keep any .git directory in the changes")] = False
     ) -> Self:
         """Apply a directory of changes to the branch"""
-        self.branch = self.branch.with_directory(".", changes.without_directory(".git"))
+        if keep_git == False:
+            changes = changes.without_directory(".git")
+        self.branch = self.branch.with_directory(".", changes)
         return self
 
     @function
