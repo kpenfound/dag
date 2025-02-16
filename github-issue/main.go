@@ -29,6 +29,8 @@ type GithubIssueData struct {
 	IssueNumber int
 	Title       string
 	Body        string
+	HeadRef     string
+	BaseRef     string
 }
 
 // Returns a container that echoes whatever string argument is provided
@@ -83,6 +85,16 @@ func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id 
 	}
 	if issue.Body != nil {
 		ghi.Body = *issue.Body
+	}
+
+	// Check if issue is pull request
+	if issue.PullRequestLinks != nil {
+		pr, _, err := ghClient.PullRequests.Get(ctx, owner, repo, id)
+		if err != nil {
+			return nil, err
+		}
+		ghi.HeadRef = pr.Head.GetRef() // FIXME: this wont work on forks
+		ghi.BaseRef = pr.Base.GetRef()
 	}
 
 	return ghi, nil
