@@ -50,7 +50,7 @@ class FeatureBranch:
         changes: Annotated[Directory, Doc("The file changes to apply to the feature branch")]
     ) -> Self:
         """Apply a directory of changes to the branch"""
-        self.branch = self.branch.with_directory(".", changes)
+        self.branch = self.branch.with_directory(".", changes.without_directory(".git"))
         return self
 
     @function
