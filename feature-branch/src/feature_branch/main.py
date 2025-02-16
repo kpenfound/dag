@@ -49,6 +49,15 @@ class FeatureBranch:
         return self
 
     @function
+    def with_branch_name(
+        self,
+        branch_name: Annotated[str, Doc("The name of the branch")]
+    ) -> Self:
+        """Sets the branch name"""
+        self.branch_name = branch_name
+        return self
+
+    @function
     def with_changes(
         self,
         changes: Annotated[Directory, Doc("The file changes to apply to the feature branch")],
