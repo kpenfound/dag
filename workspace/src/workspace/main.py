@@ -7,6 +7,7 @@ class Workspace:
     ctr: Container
     checker: str
     start: Directory
+    last_exec_output: str
 
     @classmethod
     async def create(
@@ -22,7 +23,7 @@ class Workspace:
             .with_workdir("/app")
             .with_directory("/app", context)
         )
-        return cls(ctr=ctr, checker=checker, start=context)
+        return cls(ctr=ctr, checker=checker, start=context, last_exec_output="")
 
     @function
     async def read(
@@ -43,16 +44,6 @@ class Workspace:
         return self
 
     @function
-    def write_directory(
-        self,
-        path: Annotated[str, Doc("Directory path to write a directory to")],
-        dir: Annotated[Directory, Doc("Directory contents to write")]
-    ) -> Self:
-        """Writes the provided contents to a directory in the workspace at the provided path"""
-        self.ctr = self.ctr.with_directory(path, dir)
-        return self
-
-    @function
     async def ls(
         self,
         path: Annotated[str, Doc("Path to get the list of files from")]
@@ -63,13 +54,16 @@ class Workspace:
     @function
     async def check(
         self
-    ) -> bool:
+    ) -> str:
         """Checks if the workspace meets the requirements"""
         cmd = (
             self.ctr
             .with_exec(["sh", "-c", self.checker], expect=ReturnType.ANY)
         )
-        return await cmd.exit_code() == 0
+        out = await cmd.stdout() + "\n\n" + await cmd.stderr()
+        if cmd.exit_code() != 0:
+            raise Exception(f"Checker failed: {self.checker}\nError: {out}")
+        return out
 
     @function
     async def diff(
@@ -96,7 +90,15 @@ class Workspace:
         if await cmd.exit_code() != 0:
             raise Exception(f"Command failed: {command}\nError: {await cmd.stderr()}")
         self.ctr = cmd # FIXME
+        self.last_exec_output = await cmd.stdout()
         return self
+
+    @function
+    def get_exec_output(
+        self
+    ) -> str:
+        """Returns the output of the last executed command"""
+        return self.last_exec_output
 
     @function
     def container(
