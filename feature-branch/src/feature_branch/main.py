@@ -185,12 +185,12 @@ class FeatureBranch:
                 dag.container().from_(git_container)
             )
             .with_secret_variable("GITHUB_TOKEN", self.github_token)
-            .with_workdir("/src")
-            .with_mounted_directory("/src", self.branch)
             .with_exec(["gh", "auth", "setup-git"])
             .with_exec(["git", "config", "--global", "user.name", "Marvin"])
             .with_exec(["git", "config", "--global", "user.email", "marvin@dagger.io"])
             .with_env_variable("CACHE_BUSTER", str(int(time.time())))
+            .with_workdir("/src")
+            .with_mounted_directory("/src", self.branch)
         )
 
     @function
