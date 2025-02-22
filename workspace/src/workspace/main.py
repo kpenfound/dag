@@ -44,6 +44,16 @@ class Workspace:
         return self
 
     @function
+    def write_directory(
+        self,
+        path: Annotated[str, Doc("Directory path to write a directory to")],
+        dir: Annotated[Directory, Doc("Directory contents to write")]
+    ) -> Self:
+        """Writes the provided contents to a directory in the workspace at the provided path"""
+        self.ctr = self.ctr.with_directory(path, dir)
+        return self
+
+    @function
     async def ls(
         self,
         path: Annotated[str, Doc("Path to get the list of files from")]
