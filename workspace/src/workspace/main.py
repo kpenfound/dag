@@ -71,7 +71,7 @@ class Workspace:
             .with_exec(["sh", "-c", self.checker], expect=ReturnType.ANY)
         )
         out = await cmd.stdout() + "\n\n" + await cmd.stderr()
-        if cmd.exit_code() != 0:
+        if await cmd.exit_code() != 0:
             raise Exception(f"Checker failed: {self.checker}\nError: {out}")
         return out
 
