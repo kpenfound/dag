@@ -48,14 +48,14 @@ class Workspace:
         self,
         diff: Annotated[str, Doc("Diff content to apply to the workspace")]
     ) -> Self:
-        """Applies a diff to the workspace using patch"""
+        """Applies a diff to the workspace using git apply"""
         patch = (
             await dag.container().from_("alpine/git")
             .with_workdir("/app")
             .with_directory("/app", self.ctr.directory("/app").without_directory(".git"))
             .with_exec(["git", "init"])
             .with_new_file("/patch.diff", diff)
-            .with_exec(["git", "apply", "--index", "patch.diff"])
+            .with_exec(["git", "apply", "--index", "/patch.diff"])
             .sync()
         )
         self.ctr = self.ctr.with_directory("/app", patch.directory("/app").without_directory(".git"))
