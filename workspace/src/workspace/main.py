@@ -72,6 +72,14 @@ class Workspace:
         )
 
     @function
+    async def ls(
+        self,
+        path: Annotated[str, Doc("Path to get the list of files from")]
+    ) -> list[str]:
+        """Returns the list of files in the workspace at the provided path"""
+        return await self.ctr.directory(path).entries()
+
+    @function
     def write_file(
         self,
         path: Annotated[str, Doc("File path to write a file to")],
@@ -94,6 +102,14 @@ class Workspace:
         self.ctr = self.ctr.with_new_file(path, contents)
         return self
 
+    @function
+    def reset(
+        self
+    ) -> Self:
+        """Resets the workspace to the initial state"""
+        self.ctr = self.ctr.with_directory(".", self.start)
+        return self
+
     # This is mainly used for manually configuring a workspace
     @function
     def write_directory(
@@ -104,14 +120,6 @@ class Workspace:
         """Writes the provided contents to a directory in the workspace at the provided path"""
         self.ctr = self.ctr.with_directory(path, dir)
         return self
-
-    @function
-    async def ls(
-        self,
-        path: Annotated[str, Doc("Path to get the list of files from")]
-    ) -> list[str]:
-        """Returns the list of files in the workspace at the provided path"""
-        return await self.ctr.directory(path).entries()
 
     @function
     async def check(
