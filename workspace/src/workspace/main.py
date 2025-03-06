@@ -50,15 +50,15 @@ class Workspace:
     ) -> Self:
         """Applies a diff to the workspace using patch"""
         patch = (
-            await dag.container().from_("alpine")
-            .with_exec(["apk", "add", "patch"])
+            await dag.container().from_("alpine/git")
             .with_workdir("/app")
-            .with_directory("/app", self.ctr.directory("/app"))
+            .with_directory("/app", self.ctr.directory("/app").without_directory(".git"))
+            .with_exec(["git", "init"])
             .with_new_file("/patch.diff", diff)
-            .with_exec(["sh", "-c", "patch -p1 < /patch.diff"])
+            .with_exec(["git", "apply", "--index", "patch.diff"])
             .sync()
         )
-        self.ctr = self.ctr.with_directory("/app", patch.directory("/app"))
+        self.ctr = self.ctr.with_directory("/app", patch.directory("/app").without_directory(".git"))
         return self
 
     @function
