@@ -162,9 +162,9 @@ class Workspace:
         """Returns the output of the last executed command"""
         return self.last_exec_output
 
-    # @function
-    # def container(
-    #     self
-    # ) -> Container:
-    #     """Returns the container for the workspace"""
-    #     return self.ctr
+    @function
+    def container(
+        self
+    ) -> Container:
+        """Returns the container for the workspace"""
+        return self.ctr
