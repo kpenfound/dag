@@ -44,17 +44,19 @@ class Workspace:
         return self
 
     @function
-    def write_file_diff(
+    async def write_file_diff(
         self,
         path: Annotated[str, Doc("File path to patch with diff")],
         diff: Annotated[str, Doc("Diff content to apply to the file")]
     ) -> Self:
         """Patches a file in the workspace with the provided diff"""
         patch = (
-            dag.container().from_("alpine")
+            await dag.container().from_("alpine")
             .with_exec(["apk", "add", "patch"])
             .with_file(path, self.ctr.file(path))
-            .with_exec(["sh", "-c", f"echo '{diff}' | patch {path}"])
+            .with_new_file("/patch.diff", diff)
+            .with_exec(["sh", "-c", f"patch {path} < /patch.diff"])
+            .sync()
         )
         self.ctr = self.ctr.with_file(path, patch.file(path))
         return self
