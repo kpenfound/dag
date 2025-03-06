@@ -55,6 +55,7 @@ class Workspace:
             .with_directory("/app", self.ctr.directory("/app").without_directory(".git"))
             .with_exec(["git", "init"])
             .with_new_file("/patch.diff", diff)
+            .with_exec(["echo", "", ">>", "/patch.diff"]) # Needs to end in newline
             .with_exec(["git", "apply", "--index", "/patch.diff"])
             .sync()
         )
