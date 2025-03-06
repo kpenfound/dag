@@ -46,7 +46,7 @@ class Workspace:
     @function
     def write_file_diff(
         self,
-        path: Annotated[str, Doc("File path to write a file to")],
+        path: Annotated[str, Doc("File path to patch with diff")],
         diff: Annotated[str, Doc("Diff content to apply to the file")]
     ) -> Self:
         """Patches a file in the workspace with the provided diff"""
