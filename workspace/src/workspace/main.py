@@ -44,7 +44,7 @@ class Workspace:
         return self
 
     @function
-    async def write_file_diff(
+    def write_file_diff(
         self,
         path: Annotated[str, Doc("File path to write a file to")],
         diff: Annotated[str, Doc("Diff content to apply to the file")]
