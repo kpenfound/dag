@@ -26,7 +26,7 @@ class Workspace:
         return cls(ctr=ctr, checker=checker, start=context, last_exec_output="")
 
     @function
-    async def read(
+    async def read_file(
         self,
         path: Annotated[str, Doc("File path to read a file from")]
     ) -> str:
@@ -34,33 +34,67 @@ class Workspace:
         return await self.ctr.file(path).contents()
 
     @function
+    async def read_file_lines(
+        self,
+        path: Annotated[str, Doc("File path to read a file from")],
+        start: Annotated[int, Doc("First line to read")],
+        end: Annotated[int, Doc("Last line to read")]
+    ) -> str:
+        """Reads a files contents from the start to end line"""
+        # sed -n '10,20p' filename
+        return (
+            await self.ctr
+            .with_exec([
+                "sed",
+                "-n",
+                f"'{start},{end}p'",
+                path
+            ]).stdout()
+        )
+
+    @function
+    async def search(
+        self,
+        pattern: Annotated[str, Doc("The pattern to search for")]
+    ) -> str:
+        """Searches for a pattern in the workspace files returning the file names and surrounding lines"""
+        return (
+            await self.ctr
+            .with_exec([
+                "grep",
+                "-r",
+                "-n",
+                "-A", "5",
+                "-B", "5",
+                pattern,
+                "."
+            ]).stdout()
+        )
+
+    @function
     def write_file(
         self,
         path: Annotated[str, Doc("File path to write a file to")],
         contents: Annotated[str, Doc("File contents to write")]
     ) -> Self:
-        """Writes the provided contents to a file in the workspace at the provided path"""
+        """Writes the provided contents to a new file in the workspace at the provided path"""
         self.ctr = self.ctr.with_new_file(path, contents)
         return self
 
     @function
-    async def write_diff(
+    async def write_file_replace(
         self,
-        diff: Annotated[str, Doc("Diff content to apply to the workspace")]
+        path: Annotated[str, Doc("File path to write a file to")],
+        old: Annotated[str, Doc("Existing file contents to replace")],
+        new: Annotated[str, Doc("New content to replace the existing content")]
     ) -> Self:
-        """Applies a diff to the workspace using git apply"""
-        patch = (
-            await dag.container().from_("alpine/git")
-            .with_workdir("/app")
-            .with_directory("/app", self.ctr.directory("/app").without_directory(".git"))
-            .with_exec(["git", "init"])
-            .with_new_file("/patch.diff", diff + "\n")
-            .with_exec(["git", "apply", "--index", "/patch.diff"])
-            .sync()
-        )
-        self.ctr = self.ctr.with_directory("/app", patch.directory("/app").without_directory(".git"))
+        """Replaces a portion of an existing file at a given path with new content in the workspace"""
+        contents = await self.ctr.file(path).contents()
+        contents = contents.replace(old, new)
+        self.ctr = self.ctr.with_new_file(path, contents)
         return self
 
+    # This is mainly used for manually configuring a workspace
     @function
     def write_directory(
         self,
@@ -83,7 +117,7 @@ class Workspace:
     async def check(
         self
     ) -> str:
-        """Checks if the workspace meets the requirements"""
+        """Checks if the workspace passes validation"""
         cmd = (
             self.ctr
             .with_exec(["sh", "-c", self.checker], expect=ReturnType.ANY)
@@ -128,9 +162,9 @@ class Workspace:
         """Returns the output of the last executed command"""
         return self.last_exec_output
 
-    @function
-    def container(
-        self
-    ) -> Container:
-        """Returns the container for the workspace"""
-        return self.ctr
+    # @function
+    # def container(
+    #     self
+    # ) -> Container:
+    #     """Returns the container for the workspace"""
+    #     return self.ctr
