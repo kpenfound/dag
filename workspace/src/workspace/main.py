@@ -97,9 +97,30 @@ class Workspace:
         new: Annotated[str, Doc("New content to replace the existing content")]
     ) -> Self:
         """Replaces a portion of an existing file at a given path with new content in the workspace"""
+        if old == "":
+            raise Exception("Old content to replace cannot be empty")
         contents = await self.ctr.file(path).contents()
         contents = contents.replace(old, new)
         self.ctr = self.ctr.with_new_file(path, contents)
+        return self
+
+    @function
+    def write_file_line(
+        self,
+        path: Annotated[str, Doc("File path to read a file from")],
+        line: Annotated[int, Doc("File line to replace")],
+        content: Annotated[str, Doc("New content to replace the line")]
+    ) -> Self:
+        """Replaces a specified line of a file with new content"""
+        self.ctr = (
+            self.ctr
+            .with_exec([
+                "sed",
+                "-i",
+                f"'{line}s/.*/{content}/'",
+                path
+            ])
+        )
         return self
 
     @function
