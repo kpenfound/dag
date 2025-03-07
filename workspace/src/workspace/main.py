@@ -90,21 +90,6 @@ class Workspace:
         return self
 
     @function
-    async def write_file_replace(
-        self,
-        path: Annotated[str, Doc("File path to write a file to")],
-        old: Annotated[str, Doc("Existing file contents to replace")],
-        new: Annotated[str, Doc("New content to replace the existing content")]
-    ) -> Self:
-        """Replaces a portion of an existing file at a given path with new content in the workspace"""
-        if old == "":
-            raise Exception("Old content to replace cannot be empty")
-        contents = await self.ctr.file(path).contents()
-        contents = contents.replace(old, new)
-        self.ctr = self.ctr.with_new_file(path, contents)
-        return self
-
-    @function
     def write_file_line(
         self,
         path: Annotated[str, Doc("File path to read a file from")],
