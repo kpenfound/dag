@@ -82,6 +82,7 @@ func (m *GithubIssue) WritePullRequestCodeComment(
 	ctx context.Context,
 	repo string,
 	issueID int,
+	commit string,
 	body string,
 	path string,
 	side string,
@@ -101,10 +102,11 @@ func (m *GithubIssue) WritePullRequestCodeComment(
 		return fmt.Errorf("issue is not a pull request")
 	}
 	_, _, err = ghClient.PullRequests.CreateComment(ctx, issue.Repository.Owner.GetName(), repo, issueID, &github.PullRequestComment{
-		Body: &body,
-		Path: &path,
-		Side: &side,
-		Line: &line,
+		Body:     &body,
+		CommitID: &commit,
+		Path:     &path,
+		Side:     &side,
+		Line:     &line,
 	})
 	if err != nil {
 		return err
