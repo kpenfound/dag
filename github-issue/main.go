@@ -48,6 +48,10 @@ func (m *GithubIssue) Write(ctx context.Context, repo, title, body string) (*Git
 
 // Write a comment on a Github issue
 func (m *GithubIssue) WriteComment(ctx context.Context, repo string, issueID int, body string) error {
+	owner, _, err := parseOwnerAndRepo(repo)
+	if err != nil {
+		return err
+	}
 	issue, err := loadGithubIssue(ctx, m.Token, repo, issueID)
 	if err != nil {
 		return err
@@ -59,14 +63,14 @@ func (m *GithubIssue) WriteComment(ctx context.Context, repo string, issueID int
 	}
 
 	if issue.IsPullRequest() {
-		_, _, err = ghClient.PullRequests.CreateComment(ctx, issue.Repository.Owner.GetName(), repo, issueID, &github.PullRequestComment{
+		_, _, err = ghClient.PullRequests.CreateComment(ctx, owner, repo, issueID, &github.PullRequestComment{
 			Body: &body,
 		})
 		if err != nil {
 			return err
 		}
 	} else {
-		_, _, err = ghClient.Issues.CreateComment(ctx, issue.Repository.Owner.GetName(), repo, issueID, &github.IssueComment{
+		_, _, err = ghClient.Issues.CreateComment(ctx, owner, repo, issueID, &github.IssueComment{
 			Body: &body,
 		})
 		if err != nil {
@@ -88,6 +92,10 @@ func (m *GithubIssue) WritePullRequestCodeComment(
 	side string,
 	line int,
 ) error {
+	owner, _, err := parseOwnerAndRepo(repo)
+	if err != nil {
+		return err
+	}
 	issue, err := loadGithubIssue(ctx, m.Token, repo, issueID)
 	if err != nil {
 		return err
@@ -101,7 +109,7 @@ func (m *GithubIssue) WritePullRequestCodeComment(
 	if !issue.IsPullRequest() {
 		return fmt.Errorf("issue is not a pull request")
 	}
-	_, _, err = ghClient.PullRequests.CreateComment(ctx, issue.Repository.Owner.GetName(), repo, issueID, &github.PullRequestComment{
+	_, _, err = ghClient.PullRequests.CreateComment(ctx, owner, repo, issueID, &github.PullRequestComment{
 		Body:     &body,
 		CommitID: &commit,
 		Path:     &path,
@@ -115,7 +123,7 @@ func (m *GithubIssue) WritePullRequestCodeComment(
 	return nil
 }
 
-func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id int) (*github.Issue, error) {
+func parseOwnerAndRepo(repo string) (string, string, error) {
 	// Strip .git suffix if present
 	repo = strings.TrimSuffix(repo, ".git")
 
@@ -129,11 +137,17 @@ func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id 
 	// Split remaining string into owner/repo
 	parts := strings.Split(repo, "/")
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid repository format: %s", repo)
+		return "", "", fmt.Errorf("invalid repository format: %s", repo)
 	}
 
-	owner := parts[0]
-	repo = parts[1]
+	return parts[0], parts[1], nil
+}
+
+func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id int) (*github.Issue, error) {
+	owner, repo, err := parseOwnerAndRepo(repo)
+	if err != nil {
+		return nil, err
+	}
 
 	ghClient, err := githubClient(ctx, token)
 	if err != nil {
