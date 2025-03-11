@@ -48,7 +48,7 @@ func (m *GithubIssue) Write(ctx context.Context, repo, title, body string) (*Git
 
 // Write a comment on a Github issue
 func (m *GithubIssue) WriteComment(ctx context.Context, repo string, issueID int, body string) error {
-	owner, _, err := parseOwnerAndRepo(repo)
+	owner, repoName, err := parseOwnerAndRepo(repo)
 	if err != nil {
 		return err
 	}
@@ -63,14 +63,14 @@ func (m *GithubIssue) WriteComment(ctx context.Context, repo string, issueID int
 	}
 
 	if issue.IsPullRequest() {
-		_, _, err = ghClient.PullRequests.CreateComment(ctx, owner, repo, issueID, &github.PullRequestComment{
+		_, _, err = ghClient.PullRequests.CreateComment(ctx, owner, repoName, issueID, &github.PullRequestComment{
 			Body: &body,
 		})
 		if err != nil {
 			return err
 		}
 	} else {
-		_, _, err = ghClient.Issues.CreateComment(ctx, owner, repo, issueID, &github.IssueComment{
+		_, _, err = ghClient.Issues.CreateComment(ctx, owner, repoName, issueID, &github.IssueComment{
 			Body: &body,
 		})
 		if err != nil {
@@ -92,7 +92,7 @@ func (m *GithubIssue) WritePullRequestCodeComment(
 	side string,
 	line int,
 ) error {
-	owner, _, err := parseOwnerAndRepo(repo)
+	owner, repoName, err := parseOwnerAndRepo(repo)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (m *GithubIssue) WritePullRequestCodeComment(
 	if !issue.IsPullRequest() {
 		return fmt.Errorf("issue is not a pull request")
 	}
-	_, _, err = ghClient.PullRequests.CreateComment(ctx, owner, repo, issueID, &github.PullRequestComment{
+	_, _, err = ghClient.PullRequests.CreateComment(ctx, owner, repoName, issueID, &github.PullRequestComment{
 		Body:     &body,
 		CommitID: &commit,
 		Path:     &path,
