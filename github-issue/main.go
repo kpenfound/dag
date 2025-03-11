@@ -123,6 +123,25 @@ func (m *GithubIssue) WritePullRequestCodeComment(
 	return nil
 }
 
+func (m *GithubIssue) GetPrForCommit(ctx context.Context, repo string, commit string) (int, error) {
+	owner, repoName, err := parseOwnerAndRepo(repo)
+	if err != nil {
+		return 0, err
+	}
+	ghClient, err := githubClient(ctx, m.Token)
+	if err != nil {
+		return 0, err
+	}
+	pulls, _, err := ghClient.PullRequests.ListPullRequestsWithCommit(ctx, owner, repoName, commit, nil)
+	if err != nil {
+		return 0, err
+	}
+	if len(pulls) == 0 {
+		return 0, fmt.Errorf("no pull requests found for commit %s", commit)
+	}
+	return *pulls[0].Number, nil
+}
+
 func parseOwnerAndRepo(repo string) (string, string, error) {
 	// Strip .git suffix if present
 	repo = strings.TrimSuffix(repo, ".git")
