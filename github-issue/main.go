@@ -35,7 +35,7 @@ type GithubIssueData struct {
 
 // Returns a container that echoes whatever string argument is provided
 func (m *GithubIssue) Read(ctx context.Context, repo string, issueID int) (*GithubIssueData, error) {
-	return loadGithubIssue(ctx, m.Token, repo, issueID)
+	return loadGithubIssueData(ctx, m.Token, repo, issueID)
 }
 
 // TODO: Not yet implemented
@@ -46,10 +46,74 @@ func (m *GithubIssue) Write(ctx context.Context, repo, title, body string) (*Git
 // // TODO
 // func (m *GithubIssue) ReadComments(ctx context.Context) {}
 
-// // TODO
-// func (m *GithubIssue) WriteComment(ctx context.Context) {}
+// Write a comment on a Github issue
+func (m *GithubIssue) WriteComment(ctx context.Context, repo string, issueID int, body string) error {
+	issue, err := loadGithubIssue(ctx, m.Token, repo, issueID)
+	if err != nil {
+		return err
+	}
 
-func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id int) (*GithubIssueData, error) {
+	ghClient, err := githubClient(ctx, m.Token)
+	if err != nil {
+		return err
+	}
+
+	if issue.IsPullRequest() {
+		_, _, err = ghClient.PullRequests.CreateComment(ctx, issue.Repository.Owner.GetName(), repo, issueID, &github.PullRequestComment{
+			Body: &body,
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		_, _, err = ghClient.Issues.CreateComment(ctx, issue.Repository.Owner.GetName(), repo, issueID, &github.IssueComment{
+			Body: &body,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Write a comment on a Github issue
+func (m *GithubIssue) WritePullRequestCodeComment(
+	ctx context.Context,
+	repo string,
+	issueID int,
+	body string,
+	path string,
+	side string,
+	line int,
+) error {
+	issue, err := loadGithubIssue(ctx, m.Token, repo, issueID)
+	if err != nil {
+		return err
+	}
+
+	ghClient, err := githubClient(ctx, m.Token)
+	if err != nil {
+		return err
+	}
+
+	if !issue.IsPullRequest() {
+		return fmt.Errorf("issue is not a pull request")
+	}
+	_, _, err = ghClient.PullRequests.CreateComment(ctx, issue.Repository.Owner.GetName(), repo, issueID, &github.PullRequestComment{
+		Body: &body,
+		Path: &path,
+		Side: &side,
+		Line: &line,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id int) (*github.Issue, error) {
 	// Strip .git suffix if present
 	repo = strings.TrimSuffix(repo, ".git")
 
@@ -78,6 +142,14 @@ func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id 
 	if err != nil {
 		return nil, err
 	}
+	return issue, nil
+}
+
+func loadGithubIssueData(ctx context.Context, token *dagger.Secret, repo string, id int) (*GithubIssueData, error) {
+	issue, err := loadGithubIssue(ctx, token, repo, id)
+	if err != nil {
+		return nil, err
+	}
 
 	ghi := &GithubIssueData{IssueNumber: id}
 	if issue.Title != nil {
@@ -87,9 +159,14 @@ func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id 
 		ghi.Body = *issue.Body
 	}
 
+	ghClient, err := githubClient(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+
 	// Check if issue is pull request
-	if issue.PullRequestLinks != nil {
-		pr, _, err := ghClient.PullRequests.Get(ctx, owner, repo, id)
+	if issue.IsPullRequest() {
+		pr, _, err := ghClient.PullRequests.Get(ctx, issue.Repository.Owner.GetName(), repo, id)
 		if err != nil {
 			return nil, err
 		}
