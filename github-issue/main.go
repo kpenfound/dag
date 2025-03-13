@@ -27,19 +27,37 @@ func New(
 
 type GithubIssueData struct {
 	IssueNumber int
-	Title       string
-	Body        string
-	HeadRef     string
-	BaseRef     string
+	// Issue title
+	Title string
+	// Issue body content
+	Body string
+	// Head ref for a pull request
+	HeadRef string
+	// Base ref for a pull request
+	BaseRef string
 }
 
-// Returns a container that echoes whatever string argument is provided
-func (m *GithubIssue) Read(ctx context.Context, repo string, issueID int) (*GithubIssueData, error) {
+// Read a Github issue from a repository
+func (m *GithubIssue) Read(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo string,
+	// Issue title
+	issueID int,
+) (*GithubIssueData, error) {
 	return loadGithubIssueData(ctx, m.Token, repo, issueID)
 }
 
-// TODO: Not yet implemented
-func (m *GithubIssue) Write(ctx context.Context, repo, title, body string) (*GithubIssueData, error) {
+// Create a github issue in a repository
+func (m *GithubIssue) Write(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo,
+	// Issue title
+	title,
+	// Issue body
+	body string,
+) (*GithubIssueData, error) {
 	return nil, nil
 }
 
@@ -47,7 +65,15 @@ func (m *GithubIssue) Write(ctx context.Context, repo, title, body string) (*Git
 // func (m *GithubIssue) ReadComments(ctx context.Context) {}
 
 // Write a comment on a Github issue
-func (m *GithubIssue) WriteComment(ctx context.Context, repo string, issueID int, body string) error {
+func (m *GithubIssue) WriteComment(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo string,
+	// Issue or Pull Request number
+	issueID int,
+	// Comment body
+	body string,
+) error {
 	owner, repoName, err := parseOwnerAndRepo(repo)
 	if err != nil {
 		return err
@@ -81,15 +107,22 @@ func (m *GithubIssue) WriteComment(ctx context.Context, repo string, issueID int
 	return nil
 }
 
-// Write a comment on a Github issue
+// Write a code suggestion on a Github pull request
 func (m *GithubIssue) WritePullRequestCodeComment(
 	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
 	repo string,
+	// Pull request number
 	issueID int,
+	// Git commit sha
 	commit string,
+	// Comment body, e.g. the suggestion
 	body string,
+	// File to suggest a change on
 	path string,
+	// Side of the diff to suggest a change on
 	side string,
+	// Line number to suggest a change on
 	line int,
 ) error {
 	owner, repoName, err := parseOwnerAndRepo(repo)
@@ -123,7 +156,14 @@ func (m *GithubIssue) WritePullRequestCodeComment(
 	return nil
 }
 
-func (m *GithubIssue) GetPrForCommit(ctx context.Context, repo string, commit string) (int, error) {
+// Gets the pull request number for a commit
+func (m *GithubIssue) GetPrForCommit(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo string,
+	// Git commit sha
+	commit string,
+) (int, error) {
 	owner, repoName, err := parseOwnerAndRepo(repo)
 	if err != nil {
 		return 0, err
