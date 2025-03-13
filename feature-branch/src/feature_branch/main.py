@@ -112,7 +112,7 @@ class FeatureBranch:
                 "git",
                 "commit",
                 "-m",
-                f"'{title}'",
+                f"{title}",
             ])
             .with_exec([
                 "git",
