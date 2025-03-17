@@ -1,18 +1,26 @@
 import requests
-from dagger import function, object_type
+from typing import Annotated
+from dagger import Doc, function, object_type
 
 
 @object_type
 class Weather:
     @function
-    def City(self, name: str) -> str:
+    def City(
+        self,
+        name: Annotated[str, Doc("Name of a city")]
+    ) -> str:
         """Returns the current weather in a city"""
         coordinates = get_coordinates(name)
         weather = get_weather(coordinates['latitude'], coordinates['longitude'])
         return f"{weather}°C"
 
     @function
-    def Coordinates(self, latitude: str, longitude: str) -> str:
+    def Coordinates(
+        self,
+        latitude: Annotated[str, Doc("latitude of a location")],
+        longitude: Annotated[str, Doc("longitude of a location")]
+    ) -> str:
         """Returns the current weather at the given coordinates"""
         weather = get_weather(latitude, longitude)
         return f"{weather}°C"
