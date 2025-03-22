@@ -1,0 +1,15 @@
+[project]
+name = "firecrawl-dag"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "dagger-io",
+    "firecrawl-py>=1.14.1",
+]
+
+[tool.uv.sources]
+dagger-io = { path = "sdk", editable = true }
+
+[build-system]
+requires = ["hatchling==1.25.0"]
+build-backend = "hatchling.build"

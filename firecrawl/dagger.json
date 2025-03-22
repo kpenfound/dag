@@ -1,0 +1,7 @@
+{
+  "name": "firecrawl-dag",
+  "engineVersion": "v0.17.0",
+  "sdk": {
+    "source": "python"
+  }
+}
