@@ -19,7 +19,7 @@ class FirecrawlDag:
         self,
         url: Annotated[str, Doc("The URL to crawl.")],
     ) -> list[CrawlPage]:
-        """Crawl a URL and return the content."""
+        """Crawl an entire website and return the data containing all of its pages."""
         app = FirecrawlApp(api_key=await self.api_key.plaintext())
 
         # Crawl a website:
@@ -46,7 +46,7 @@ class FirecrawlDag:
         self,
         url: Annotated[str, Doc("The URL to scrape.")],
     ) -> str:
-        """Scrape a URL and return the content."""
+        """Scrape a signle webpage and return the content in markdown format."""
         app = FirecrawlApp(api_key=await self.api_key.plaintext())
 
         # Scrape a website:
@@ -58,24 +58,24 @@ class FirecrawlDag:
         self,
         url: Annotated[str, Doc("The URL to scrape.")],
     ) -> list[str]:
-        """Map a website and get all the urls on the website"""
+        """Map a website to get a list of all the page urls"""
         app = FirecrawlApp(api_key=await self.api_key.plaintext())
 
         # Map a website:
         map_result = app.map_url(url)
         return map_result["links"]
 
-    @function
-    async def extract(
-        self,
-        urls: Annotated[list[str], Doc("The URLs to scrape.")],
-        prompt: Annotated[str, Doc("The description of the information to extract.")],
-    ) -> str:
-        """Extract structured data from a website"""
-        # app = FirecrawlApp(api_key=await self.api_key.plaintext())
-        # FIXME: The ExtractParams seems to be different from the docs
-        # data = app.extract(urls, {
-        #     'prompt': prompt,
-        # })
-        # return data["data"]
-        return "Not implemented"
+    # @function
+    # async def extract(
+    #     self,
+    #     urls: Annotated[list[str], Doc("The URLs to scrape.")],
+    #     prompt: Annotated[str, Doc("The description of the information to extract.")],
+    # ) -> str:
+    #     """Extract structured data from a website"""
+    #     # app = FirecrawlApp(api_key=await self.api_key.plaintext())
+    #     # FIXME: The ExtractParams seems to be different from the docs
+    #     # data = app.extract(urls, {
+    #     #     'prompt': prompt,
+    #     # })
+    #     # return data["data"]
+    #     return "Not implemented"
