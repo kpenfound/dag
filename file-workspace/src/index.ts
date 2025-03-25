@@ -10,9 +10,11 @@ export class FileWorkspace {
    */
   @func()
   source: Directory;
+  start: Directory;
 
   constructor(source: Directory) {
     this.source = source;
+    this.start = source;
   }
 
   /**
@@ -45,6 +47,42 @@ export class FileWorkspace {
       .from("alpine")
       .withDirectory("/app", this.source)
       .withExec(["tree", "/app"])
+      .stdout();
+  }
+
+  /**
+   * Search for a string in the workspace and get the files that contain it
+   * @param query The string to search for
+   */
+  @func()
+  async search(query: string): Promise<string> {
+    return dag
+      .container()
+      .from("alpine")
+      .withDirectory("/app", this.source)
+      .withExec(["grep", "-r", query, "/app"])
+      .stdout();
+  }
+
+  /**
+   * Reset the workspace to the original state
+   */
+  @func()
+  reset(): FileWorkspace {
+    this.source = this.start;
+    return this;
+  }
+
+  /**
+   * Get the changes made in the workspace in unified diff format
+   */
+  @func()
+  diff(): Promise<string> {
+    return dag
+      .container()
+      .from("alpine")
+      .withDirectory("/app", this.source)
+      .withExec(["git", "diff", "--no-index", "/app", "/app"])
       .stdout();
   }
 }

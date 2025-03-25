@@ -1,6 +1,6 @@
 {
   "name": "feature-branch",
-  "engineVersion": "v0.15.4",
+  "engineVersion": "v0.17.1",
   "sdk": {
     "source": "python"
   },
@@ -10,6 +10,5 @@
       "source": "github.com/camptocamp/daggerverse/github@github/v0.1.3",
       "pin": "1f4dbdc58c87165522428715a604b8ef8ef4fd76"
     }
-  ],
-  "source": "."
+  ]
 }
