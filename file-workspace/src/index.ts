@@ -34,4 +34,17 @@ export class FileWorkspace {
     this.source = this.source.withNewFile(path, content);
     return this;
   }
+
+  /**
+   * List the files in the workspace in tree format
+   */
+  @func()
+  async listFiles(): Promise<string> {
+    return dag
+      .container()
+      .from("alpine")
+      .withDirectory("/app", this.source)
+      .withExec(["tree", "/app"])
+      .stdout();
+  }
 }
