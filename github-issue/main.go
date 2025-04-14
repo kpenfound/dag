@@ -135,8 +135,8 @@ type Comment struct {
 	CreatedAt string
 }
 
-// Read all of the comments on a Github issue or pull request
-func (m *GithubIssue) ReadComments(
+// List all of the comments on a Github issue or pull request
+func (m *GithubIssue) ListComments(
 	ctx context.Context,
 	// Github repo, e.g https://github.com/owner/repo
 	repo string,
@@ -171,15 +171,15 @@ func (m *GithubIssue) ReadComments(
 	return comments, nil
 }
 
-// Read all of the comments on a Github issue or pull request and return a readable output
-func (m *GithubIssue) ReadCommentsUnified(
+// List all of the comments on a Github issue or pull request and return a readable output
+func (m *GithubIssue) ListCommentsUnified(
 	ctx context.Context,
 	// Github repo, e.g https://github.com/owner/repo
 	repo string,
 	// Issue or Pull Request number
 	issueID int,
 ) (string, error) {
-	comments, err := m.ReadComments(ctx, repo, issueID)
+	comments, err := m.ListComments(ctx, repo, issueID)
 	if err != nil {
 		return "", err
 	}
