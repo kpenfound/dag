@@ -39,18 +39,83 @@ type GithubIssueData struct {
 	BaseRef string
 }
 
+// List Github issues for a repository
+func (m *GithubIssue) List(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo string,
+	// Page of issues to read. There are 10 per page
+	// +default=1
+	page int,
+) ([]*GithubIssueData, error) {
+	ghClient, err := githubClient(ctx, m.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	owner, repoName, err := parseOwnerAndRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	issues, _, err := ghClient.Issues.ListByRepo(
+		ctx,
+		owner,
+		repoName,
+		&github.IssueListByRepoOptions{
+			ListOptions: github.ListOptions{
+				Page:    page,
+				PerPage: 10,
+			},
+		},
+	)
+
+	res := []*GithubIssueData{}
+	for _, i := range issues {
+		ghd := &GithubIssueData{
+			IssueNumber: i.GetNumber(),
+			Title:       i.GetTitle(),
+			Body:        i.GetBody(),
+		}
+		res = append(res, ghd)
+	}
+	return res, nil
+}
+
+// List Github issues for a repository and return a readable output
+func (m *GithubIssue) ListUnified(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo string,
+	// Page of issues to read. There are 10 per page
+	// +default=1
+	page int,
+) (string, error) {
+	issues, err := m.List(ctx, repo, page)
+	if err != nil {
+		return "", err
+	}
+
+	res := fmt.Sprintf("# Issues for %s\n\n", repo)
+
+	for _, i := range issues {
+		res += fmt.Sprintf("## Issue %d: %s\n%s\n\n", i.IssueNumber, i.Title, i.Body)
+	}
+	return res, nil
+}
+
 // Read a Github issue from a repository
 func (m *GithubIssue) Read(
 	ctx context.Context,
 	// Github repo, e.g https://github.com/owner/repo
 	repo string,
-	// Issue title
+	// Issue ID
 	issueID int,
 ) (*GithubIssueData, error) {
 	return loadGithubIssueData(ctx, m.Token, repo, issueID)
 }
 
-// Create a github issue in a repository
+// Create a github issue in a repository TODO: NOT YET IMPLEMENTED
 func (m *GithubIssue) Write(
 	ctx context.Context,
 	// Github repo, e.g https://github.com/owner/repo
@@ -63,8 +128,72 @@ func (m *GithubIssue) Write(
 	return nil, nil
 }
 
-// // TODO
-// func (m *GithubIssue) ReadComments(ctx context.Context) {}
+// A Github issue comment
+type Comment struct {
+	Author    string
+	Body      string
+	CreatedAt string
+}
+
+// Read all of the comments on a Github issue or pull request
+func (m *GithubIssue) ReadComments(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo string,
+	// Issue or Pull Request number
+	issueID int,
+) ([]Comment, error) {
+	ghClient, err := githubClient(ctx, m.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	owner, repoName, err := parseOwnerAndRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	ghComments, _, err := ghClient.Issues.ListComments(ctx, owner, repoName, issueID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	comments := []Comment{}
+
+	for _, c := range ghComments {
+		user := c.GetUser().GetLogin()
+		body := c.GetBody()
+		createdAt := c.GetCreatedAt().String()
+
+		comments = append(comments, Comment{Author: user, Body: body, CreatedAt: createdAt})
+	}
+
+	return comments, nil
+}
+
+// Read all of the comments on a Github issue or pull request and return a readable output
+func (m *GithubIssue) ReadCommentsUnified(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo string,
+	// Issue or Pull Request number
+	issueID int,
+) (string, error) {
+	comments, err := m.ReadComments(ctx, repo, issueID)
+	if err != nil {
+		return "", err
+	}
+	original, err := m.Read(ctx, repo, issueID)
+	if err != nil {
+		return "", err
+	}
+	res := fmt.Sprintf("# Comments on issue %d\n\n## Issue Body\n%s\n\n", issueID, original.Body)
+
+	for _, c := range comments {
+		res += fmt.Sprintf("## %s at %s says:\n%s\n\n", c.Author, c.CreatedAt, c.Body)
+	}
+	return res, nil
+}
 
 // Write a comment on a Github issue
 func (m *GithubIssue) WriteComment(
