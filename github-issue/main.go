@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"dagger/github-issue/internal/dagger"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -20,6 +21,7 @@ type GithubIssue struct {
 // Crate a new GithubIssue object
 func New(
 	// Github authentication token
+	// +optional
 	token *dagger.Secret,
 ) *GithubIssue {
 	return &GithubIssue{Token: token}
@@ -203,6 +205,9 @@ func parseOwnerAndRepo(repo string) (string, string, error) {
 }
 
 func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id int) (*github.Issue, error) {
+	if token == nil {
+		return nil, errors.New("github token is required")
+	}
 	owner, repo, err := parseOwnerAndRepo(repo)
 	if err != nil {
 		return nil, err
@@ -258,4 +263,49 @@ func githubClient(ctx context.Context, token *dagger.Secret) (*github.Client, er
 		return nil, err
 	}
 	return github.NewClient(nil).WithAuthToken(plaintoken), nil
+}
+
+type Template struct {
+	Name    string
+	Content string
+}
+
+// Retruns the github issue templates in a JSON format for a specified repo
+func (m *GithubIssue) Templates(ctx context.Context,
+	// The name of the github repository in a owner/repo format
+	repo string,
+) ([]*Template, error) {
+
+	var issueTemplateDir *dagger.Directory
+	if td, err := dag.Git("https://github.com/" + repo).Head().Tree().Directory(".github/ISSUE_TEMPLATE").Sync(ctx); err != nil {
+		base := strings.Split(repo, "/")[0]
+		if td, err := dag.Git("https://github.com/" + base + "/.github").Head().Tree().Directory(".github/ISSUE_TEMPLATE").Sync(ctx); err != nil {
+			return nil, errors.New("issue templates could not be found")
+		} else {
+			issueTemplateDir = td
+		}
+	} else {
+		issueTemplateDir = td
+	}
+
+	tplFiles, err := issueTemplateDir.Entries(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	templates := []*Template{}
+
+	for _, tf := range tplFiles {
+		if tc, err := issueTemplateDir.File(tf).Contents(ctx); err != nil {
+			continue
+		} else {
+			templates = append(templates, &Template{
+				Name:    tf,
+				Content: tc,
+			})
+		}
+
+	}
+	return templates, nil
 }
