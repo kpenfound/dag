@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"dagger/github-issue/internal/dagger"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -399,7 +400,7 @@ type Template struct {
 	Content string
 }
 
-// Retruns the github issue templates in a JSON format for a specified repo
+// Retruns the github issue templates
 func (m *GithubIssue) Templates(ctx context.Context,
 	// The name of the github repository in a owner/repo format
 	repo string,
@@ -437,4 +438,22 @@ func (m *GithubIssue) Templates(ctx context.Context,
 
 	}
 	return templates, nil
+}
+
+// Retruns the github issue templates in a readable output
+func (m *GithubIssue) TemplatesUnified(ctx context.Context,
+	// The name of the github repository in a owner/repo format
+	repo string,
+) (string, error) {
+	templates, err := m.Templates(ctx, repo)
+	if err != nil {
+		return "", err
+	}
+
+	res, err := json.Marshal(templates)
+	if err != nil {
+		return "", err
+	}
+	return string(res), nil
+
 }
