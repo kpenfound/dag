@@ -356,6 +356,7 @@ func (m *GithubIssue) CreatePullRequest(
 		branch = strings.ReplaceAll(branch, ":", "")
 		branch = strings.ToLower(title)
 		branch = strings.ReplaceAll(branch, " ", "_")
+		branch += fmt.Sprintf("_%d", time.Now().Unix())
 	}
 	// push source as remote branch
 	gitContainer := dag.Container().From("alpine/git:v2.47.1")
