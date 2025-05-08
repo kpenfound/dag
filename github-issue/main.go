@@ -41,6 +41,8 @@ type GithubIssueData struct {
 	HeadRef string
 	// Base ref for a pull request
 	BaseRef string
+	// URL to the issue in Github
+	URL string
 }
 
 // List Github issues for a repository
@@ -452,6 +454,10 @@ func loadGithubIssueData(ctx context.Context, token *dagger.Secret, repo string,
 	}
 	if issue.Body != nil {
 		ghi.Body = *issue.Body
+	}
+
+	if issue.URL != nil {
+		ghi.URL = *issue.URL
 	}
 
 	ghClient, err := githubClient(ctx, token)
