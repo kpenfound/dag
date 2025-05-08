@@ -1,7 +1,14 @@
 {
   "name": "github-issue",
-  "engineVersion": "v0.18.3",
+  "engineVersion": "v0.18.6",
   "sdk": {
     "source": "go"
-  }
+  },
+  "dependencies": [
+    {
+      "name": "github",
+      "source": "github.com/camptocamp/daggerverse/github@github/v0.1.3",
+      "pin": "1f4dbdc58c87165522428715a604b8ef8ef4fd76"
+    }
+  ]
 }

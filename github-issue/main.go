@@ -9,9 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v59/github"
 )
+
+const GITHUB_CLI = "2.72.0"
 
 type GithubIssue struct {
 	// Github Token
@@ -83,7 +86,7 @@ func (m *GithubIssue) List(
 	return res, nil
 }
 
-// List Github issues for a repository and return a readable output
+// List Github issues for a repository and return a readable output for llms
 func (m *GithubIssue) ListUnified(
 	ctx context.Context,
 	// Github repo, e.g https://github.com/owner/repo
@@ -172,7 +175,7 @@ func (m *GithubIssue) ListComments(
 	return comments, nil
 }
 
-// List all of the comments on a Github issue or pull request and return a readable output
+// List all of the comments on a Github issue or pull request and return a readable output for llms
 func (m *GithubIssue) ListCommentsUnified(
 	ctx context.Context,
 	// Github repo, e.g https://github.com/owner/repo
@@ -314,6 +317,88 @@ func (m *GithubIssue) GetPrForCommit(
 	return *pulls[0].Number, nil
 }
 
+// Create a Github Issue
+// func (m *GithubIssue) CreateIssue(
+// 	ctx context.Context,
+// 	// Github repo, e.g https://github.com/owner/repo
+// 	repo string,
+// 	// title of issue
+// 	title string,
+// 	// body of issue
+// 	body string,
+// ) (*GithubIssueData, error) {}
+
+// Create a Github Pull Request
+func (m *GithubIssue) CreatePullRequest(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo string,
+	// title of pull request
+	title string,
+	// body of pull request
+	body string,
+	// code to commit
+	source *dagger.Directory,
+	// branch name for pull request
+	// +optional
+	branch string,
+	// base branch for pull request
+	// +default="main"
+	base string,
+) (*GithubIssueData, error) {
+	// determine branch name if unset
+	if branch == "" {
+		branch = strings.ToValidUTF8(branch, "")
+		branch = strings.ReplaceAll(branch, "'", "")
+		branch = strings.ReplaceAll(branch, "\"", "")
+		branch = strings.ReplaceAll(branch, ":", "")
+		branch = strings.ToLower(title)
+		branch = strings.ReplaceAll(branch, " ", "_")
+	}
+	// push source as remote branch
+	gitContainer := dag.Container().From("alpine/git:v2.47.1")
+	_, err := dag.Github(GITHUB_CLI).
+		Container(gitContainer).
+		WithSecretVariable("GITHUB_TOKEN", m.Token).
+		WithExec([]string{"gh", "auth", "setup-git"}).
+		WithExec([]string{"git", "config", "--global", "user.name", "Dagger"}).
+		WithExec([]string{"git", "config", "--global", "user.email", "noreply@dagger.io"}).
+		WithEnvVariable("CACHE_BUSTER", time.Now().String()).
+		WithWorkdir("/src").
+		WithExec([]string{"gh", "repo", "clone", repo, ".", "--", "--depth=1"}).
+		WithExec([]string{"git", "checkout", "-b", branch}).
+		WithDirectory("/src", source.WithoutDirectory(".git")).
+		WithExec([]string{"git", "add", "."}).
+		WithExec([]string{"git", "commit", "-m", branch}).
+		WithExec([]string{"git", "push", "origin", branch}).
+		Sync(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// create pull request with remote branch
+	owner, repoName, err := parseOwnerAndRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+	ghClient, err := githubClient(ctx, m.Token)
+	if err != nil {
+		return nil, err
+	}
+	prData := &github.NewPullRequest{
+		Title:               github.String(title),
+		Head:                github.String(branch),
+		Base:                github.String(base),
+		Body:                github.String(body),
+		MaintainerCanModify: github.Bool(true),
+	}
+	pr, _, err := ghClient.PullRequests.Create(ctx, owner, repoName, prData)
+	if err != nil {
+		return nil, err
+	}
+	// return issue data for new pull request
+	return loadGithubIssueData(ctx, m.Token, repo, int(pr.GetID()))
+}
+
 func parseOwnerAndRepo(repo string) (string, string, error) {
 	// Strip .git suffix if present
 	repo = strings.TrimSuffix(repo, ".git")
@@ -338,7 +423,7 @@ func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id 
 	if token == nil {
 		return nil, errors.New("github token is required")
 	}
-	owner, repo, err := parseOwnerAndRepo(repo)
+	owner, repoName, err := parseOwnerAndRepo(repo)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +433,7 @@ func loadGithubIssue(ctx context.Context, token *dagger.Secret, repo string, id 
 		return nil, err
 	}
 
-	issue, _, err := ghClient.Issues.Get(ctx, owner, repo, id)
+	issue, _, err := ghClient.Issues.Get(ctx, owner, repoName, id)
 	if err != nil {
 		return nil, err
 	}
