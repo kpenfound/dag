@@ -457,8 +457,8 @@ func loadGithubIssueData(ctx context.Context, token *dagger.Secret, repo string,
 		ghi.Body = *issue.Body
 	}
 
-	if issue.URL != nil {
-		ghi.URL = *issue.URL
+	if issue.HTMLURL != nil {
+		ghi.URL = *issue.HTMLURL
 	}
 
 	ghClient, err := githubClient(ctx, token)
