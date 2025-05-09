@@ -399,7 +399,14 @@ func (m *GithubIssue) CreatePullRequest(
 		return nil, err
 	}
 	// return issue data for new pull request
-	return loadGithubIssueData(ctx, m.Token, repo, int(pr.GetNumber()))
+	return &GithubIssueData{
+		IssueNumber: pr.GetNumber(),
+		Title:       pr.GetTitle(),
+		Body:        pr.GetBody(),
+		HeadRef:     pr.GetHead().GetRef(),
+		BaseRef:     pr.GetBase().GetRef(),
+		URL:         pr.GetHTMLURL(),
+	}, nil
 }
 
 func parseOwnerAndRepo(repo string) (string, string, error) {
