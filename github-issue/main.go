@@ -41,8 +41,8 @@ type GithubIssueData struct {
 	HeadRef string
 	// Base ref for a pull request
 	BaseRef string
-	// Base sha for a pull request
-	BaseSha string
+	// URL for a pull request diff
+	DiffURL string
 	// URL to the issue in Github
 	URL string
 }
@@ -428,7 +428,7 @@ func (m *GithubIssue) CreatePullRequest(
 		Body:        pr.GetBody(),
 		HeadRef:     pr.GetHead().GetRef(),
 		BaseRef:     pr.GetBase().GetRef(),
-		BaseSha:     pr.GetBase().GetSHA(),
+		DiffURL:     pr.GetDiffURL(),
 		URL:         pr.GetHTMLURL(),
 	}, nil
 }
