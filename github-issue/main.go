@@ -390,11 +390,11 @@ func (m *GithubIssue) CreatePullRequest(
 ) (*GithubIssueData, error) {
 	// determine branch name if unset
 	if branch == "" {
-		branch = strings.ToValidUTF8(branch, "")
+		branch = strings.ToValidUTF8(title, "")
 		branch = strings.ReplaceAll(branch, "'", "")
 		branch = strings.ReplaceAll(branch, "\"", "")
 		branch = strings.ReplaceAll(branch, ":", "")
-		branch = strings.ToLower(title)
+		branch = strings.ToLower(branch)
 		branch = strings.ReplaceAll(branch, " ", "_")
 		branch += fmt.Sprintf("_%d", time.Now().Unix())
 	}
