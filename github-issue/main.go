@@ -215,30 +215,17 @@ func (m *GithubIssue) WriteComment(
 	if err != nil {
 		return err
 	}
-	issue, err := loadGithubIssue(ctx, m.Token, repo, issueID)
-	if err != nil {
-		return err
-	}
 
 	ghClient, err := githubClient(ctx, m.Token)
 	if err != nil {
 		return err
 	}
 
-	if issue.IsPullRequest() {
-		_, _, err = ghClient.PullRequests.CreateComment(ctx, owner, repoName, issueID, &github.PullRequestComment{
-			Body: &body,
-		})
-		if err != nil {
-			return err
-		}
-	} else {
-		_, _, err = ghClient.Issues.CreateComment(ctx, owner, repoName, issueID, &github.IssueComment{
-			Body: &body,
-		})
-		if err != nil {
-			return err
-		}
+	_, _, err = ghClient.Issues.CreateComment(ctx, owner, repoName, issueID, &github.IssueComment{
+		Body: &body,
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
