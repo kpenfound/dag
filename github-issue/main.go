@@ -350,7 +350,7 @@ func (m *GithubIssue) CreatePullRequestCommit(
 		WithEnvVariable("CACHE_BUSTER", time.Now().String()).
 		WithWorkdir("/src").
 		WithExec([]string{"gh", "repo", "clone", repo, "."})
-	list, err := git.WithExec([]string{"git", "branch", "--list", branch}).
+	list, err := git.WithExec([]string{"git", "show-ref", branch}).
 		Stdout(ctx)
 	if err != nil {
 		return err
