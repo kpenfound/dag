@@ -499,8 +499,12 @@ func loadGithubIssueData(ctx context.Context, token *dagger.Secret, repo string,
 	}
 
 	// Check if issue is pull request
+	owner, repoName, err := parseOwnerAndRepo(repo)
+	if err != nil {
+		return nil, err
+	}
 	if issue.IsPullRequest() {
-		pr, _, err := ghClient.PullRequests.Get(ctx, issue.Repository.Owner.GetName(), repo, id)
+		pr, _, err := ghClient.PullRequests.Get(ctx, owner, repoName, id)
 		if err != nil {
 			return nil, err
 		}
