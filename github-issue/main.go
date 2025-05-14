@@ -341,7 +341,8 @@ func (m *GithubIssue) CreatePullRequestCommit(
 	branch string,
 ) error {
 	gitContainer := dag.Container().From("alpine/git:v2.47.1")
-	git := dag.Github(GITHUB_CLI).
+	// Clone the repo
+	git, err := dag.Github(GITHUB_CLI).
 		Container(gitContainer).
 		WithSecretVariable("GITHUB_TOKEN", m.Token).
 		WithExec([]string{"gh", "auth", "setup-git"}).
@@ -349,19 +350,27 @@ func (m *GithubIssue) CreatePullRequestCommit(
 		WithExec([]string{"git", "config", "--global", "user.email", "noreply@dagger.io"}).
 		WithEnvVariable("CACHE_BUSTER", time.Now().String()).
 		WithWorkdir("/src").
-		WithExec([]string{"gh", "repo", "clone", repo, "."})
-	list, err := git.WithExec([]string{"git", "show-ref", branch}).
-		Stdout(ctx)
+		WithExec([]string{"gh", "repo", "clone", repo, "."}).
+		Sync(ctx)
 	if err != nil {
 		return err
 	}
+	// Check for existing branch
+	list, err := git.WithExec([]string{"git", "show-ref", branch}).
+		Stdout(ctx)
+	if err != nil {
+		// Show-ref couldn't find the branch
+		list = ""
+	}
 
+	// Checkout -b if new branch
 	if list == "" {
 		git = git.WithExec([]string{"git", "checkout", "-b", branch})
 	} else {
 		git = git.WithExec([]string{"git", "checkout", branch})
 	}
 
+	// Commit and push changes
 	_, err = git.WithDirectory("/src", source.WithoutDirectory(".git")).
 		WithExec([]string{"git", "add", "."}).
 		WithExec([]string{"git", "commit", "-m", branch}).
