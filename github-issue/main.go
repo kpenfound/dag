@@ -509,6 +509,7 @@ func loadGithubIssueData(ctx context.Context, token *dagger.Secret, repo string,
 		}
 		ghi.HeadRef = pr.Head.GetRef() // FIXME: this wont work on forks
 		ghi.BaseRef = pr.Base.GetRef()
+		ghi.DiffURL = pr.GetDiffURL()
 	}
 
 	return ghi, nil
