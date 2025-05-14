@@ -330,6 +330,46 @@ func (m *GithubIssue) GetPrForCommit(
 // 	body string,
 // ) (*GithubIssueData, error) {}
 
+// Create a commit on a Github Pull Request
+func (m *GithubIssue) CreatePullRequestCommit(
+	ctx context.Context,
+	// Github repo, e.g https://github.com/owner/repo
+	repo string,
+	// code to commit
+	source *dagger.Directory,
+	// branch name for pull request
+	branch string,
+) error {
+	gitContainer := dag.Container().From("alpine/git:v2.47.1")
+	git := dag.Github(GITHUB_CLI).
+		Container(gitContainer).
+		WithSecretVariable("GITHUB_TOKEN", m.Token).
+		WithExec([]string{"gh", "auth", "setup-git"}).
+		WithExec([]string{"git", "config", "--global", "user.name", "Dagger"}).
+		WithExec([]string{"git", "config", "--global", "user.email", "noreply@dagger.io"}).
+		WithEnvVariable("CACHE_BUSTER", time.Now().String()).
+		WithWorkdir("/src").
+		WithExec([]string{"gh", "repo", "clone", repo, "."})
+	list, err := git.WithExec([]string{"git", "branch", "--list", branch}).
+		Stdout(ctx)
+	if err != nil {
+		return err
+	}
+
+	if list == "" {
+		git = git.WithExec([]string{"git", "checkout", "-b", branch})
+	} else {
+		git = git.WithExec([]string{"git", "checkout", branch})
+	}
+
+	_, err = git.WithDirectory("/src", source.WithoutDirectory(".git")).
+		WithExec([]string{"git", "add", "."}).
+		WithExec([]string{"git", "commit", "-m", branch}).
+		WithExec([]string{"git", "push", "origin", branch}).
+		Sync(ctx)
+	return err
+}
+
 // Create a Github Pull Request
 func (m *GithubIssue) CreatePullRequest(
 	ctx context.Context,
@@ -359,22 +399,7 @@ func (m *GithubIssue) CreatePullRequest(
 		branch += fmt.Sprintf("_%d", time.Now().Unix())
 	}
 	// push source as remote branch
-	gitContainer := dag.Container().From("alpine/git:v2.47.1")
-	_, err := dag.Github(GITHUB_CLI).
-		Container(gitContainer).
-		WithSecretVariable("GITHUB_TOKEN", m.Token).
-		WithExec([]string{"gh", "auth", "setup-git"}).
-		WithExec([]string{"git", "config", "--global", "user.name", "Dagger"}).
-		WithExec([]string{"git", "config", "--global", "user.email", "noreply@dagger.io"}).
-		WithEnvVariable("CACHE_BUSTER", time.Now().String()).
-		WithWorkdir("/src").
-		WithExec([]string{"gh", "repo", "clone", repo, ".", "--", "--depth=1"}).
-		WithExec([]string{"git", "checkout", "-b", branch}).
-		WithDirectory("/src", source.WithoutDirectory(".git")).
-		WithExec([]string{"git", "add", "."}).
-		WithExec([]string{"git", "commit", "-m", branch}).
-		WithExec([]string{"git", "push", "origin", branch}).
-		Sync(ctx)
+	err := m.CreatePullRequestCommit(ctx, repo, source, branch)
 	if err != nil {
 		return nil, err
 	}
