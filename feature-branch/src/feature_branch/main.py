@@ -11,7 +11,7 @@ class FeatureBranch:
     github_token: Annotated[Secret, Doc("GitHub Token")] = field(default=None)
     branch_name: str
     is_fork: bool = False
-    branch: Annotated[Directory, Doc("A git repo")] = field(default=dag.directory())
+    branch: Annotated[Directory, Doc("A git repo")] = field(default=None)
     @classmethod
     async def create(
         cls,
