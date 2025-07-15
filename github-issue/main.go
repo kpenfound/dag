@@ -33,6 +33,8 @@ func New(
 
 type GithubIssueData struct {
 	IssueNumber int
+	// Issue author
+	Author string
 	// Issue title
 	Title string
 	// Issue body content
@@ -81,6 +83,7 @@ func (m *GithubIssue) List(
 	res := []*GithubIssueData{}
 	for _, i := range issues {
 		ghd := &GithubIssueData{
+			Author:      i.GetUser().GetLogin(),
 			IssueNumber: i.GetNumber(),
 			Title:       i.GetTitle(),
 			Body:        i.GetBody(),
@@ -423,6 +426,7 @@ func (m *GithubIssue) CreatePullRequest(
 	}
 	// return issue data for new pull request
 	return &GithubIssueData{
+		Author:      pr.GetUser().GetLogin(),
 		IssueNumber: pr.GetNumber(),
 		Title:       pr.GetTitle(),
 		Body:        pr.GetBody(),
@@ -480,16 +484,12 @@ func loadGithubIssueData(ctx context.Context, token *dagger.Secret, repo string,
 		return nil, err
 	}
 
-	ghi := &GithubIssueData{IssueNumber: id}
-	if issue.Title != nil {
-		ghi.Title = *issue.Title
-	}
-	if issue.Body != nil {
-		ghi.Body = *issue.Body
-	}
-
-	if issue.HTMLURL != nil {
-		ghi.URL = *issue.HTMLURL
+	ghi := &GithubIssueData{
+		IssueNumber: id,
+		Author:      issue.GetUser().GetLogin(),
+		Title:       issue.GetTitle(),
+		Body:        issue.GetBody(),
+		URL:         issue.GetHTMLURL(),
 	}
 
 	ghClient, err := githubClient(ctx, token)
