@@ -1,3 +1,4 @@
+import time
 import dagger
 from dagger import dag, function, object_type
 
@@ -16,9 +17,12 @@ class Example:
         client = dag.artifactory(access_token, instance_url)
 
         # Upload an artifact
-        artifact = dag.http("https://github.com/dagger/dagger/releases/download/v0.18.14/dagger_v0.18.14_linux_amd64.tar.gz")
-        artifact_path = "generic-repo/dagger_v0.18.14_linux_amd64.tar.gz"
+        artifact = dag.http("https://github.com/dagger/dagger/releases/download/v0.18.13/dagger_v0.18.13_linux_amd64.tar.gz")
+        artifact_path = "generic-repo/dagger_v0.18.13_linux_amd64.tar.gz"
         upload_output = await client.upload(artifact, artifact_path)
+
+        # Wait a moment for upload to process
+        time.sleep(1)
 
         # Upload evidence for the artifact
         predicate = dag.current_module().source().file("./test_predicate.json")
