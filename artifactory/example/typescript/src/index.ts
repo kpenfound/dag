@@ -6,7 +6,7 @@ export class Example {
    * Upload an artifact with evidence
    */
   @func()
-  async example_uploadArtifactWithEvidence(
+  async artifactory_uploadArtifactWithEvidence(
     instanceUrl: string,
     accessToken: Secret,
   ): Promise<string> {

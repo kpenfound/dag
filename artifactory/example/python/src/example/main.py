@@ -6,7 +6,7 @@ from dagger import dag, function, object_type
 @object_type
 class Example:
     @function
-    async def example__upload_artifact_with_evidence(
+    async def artifactory__upload_artifact_with_evidence(
         self,
         instance_url: str,
         access_token: dagger.Secret,
