@@ -1,7 +1,13 @@
 {
   "name": "example",
-  "engineVersion": "v0.18.14",
+  "engineVersion": "v0.18.11",
   "sdk": {
     "source": "python"
-  }
+  },
+  "dependencies": [
+    {
+      "name": "artifactory",
+      "source": "../.."
+    }
+  ]
 }

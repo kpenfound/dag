@@ -5,18 +5,27 @@ from dagger import dag, function, object_type
 @object_type
 class Example:
     @function
-    def container_echo(self, string_arg: str) -> dagger.Container:
-        """Returns a container that echoes whatever string argument is provided"""
-        return dag.container().from_("alpine:latest").with_exec(["echo", string_arg])
+    async def example__upload_artifact_with_evidence(
+        self,
+        instance_url: str,
+        access_token: dagger.Secret,
+    ) -> str:
+        """Upload an artifact with evidence"""
 
-    @function
-    async def grep_dir(self, directory_arg: dagger.Directory, pattern: str) -> str:
-        """Returns lines that match a pattern in the files of the provided Directory"""
-        return await (
-            dag.container()
-            .from_("alpine:latest")
-            .with_mounted_directory("/mnt", directory_arg)
-            .with_workdir("/mnt")
-            .with_exec(["grep", "-R", pattern, "."])
-            .stdout()
-        )
+        # Construct the artifactory module
+        client = dag.artifactory(access_token, instance_url)
+
+        # Upload an artifact
+        artifact = dag.http("https://github.com/dagger/dagger/releases/download/v0.18.14/dagger_v0.18.14_linux_amd64.tar.gz")
+        artifact_path = "generic-repo/dagger_v0.18.14_linux_amd64.tar.gz"
+        upload_output = await client.upload(artifact, artifact_path)
+
+        # Upload evidence for the artifact
+        predicate = dag.current_module().source().file("./test_predicate.json")
+        predicate_type = "https://in-toto.io/Statement/v1"
+        key = dag.current_module().source().file("./private.pem")
+        key_alias = "OtherKey"
+        trace_url = await dag.cloud().trace_url()
+        create_evidence_output = await client.create_evidence(predicate, predicate_type, key, key_alias=key_alias, subject_repo_path=artifact_path, trace_url=trace_url)
+
+        return upload_output + "\n" + create_evidence_output
