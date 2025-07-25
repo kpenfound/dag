@@ -6,10 +6,7 @@ export class Example {
    * Upload an artifact with evidence
    */
   @func()
-  async artifactory_uploadArtifactWithEvidence(
-    instanceUrl: string,
-    accessToken: Secret,
-  ): Promise<string> {
+  async artifactory(instanceUrl: string, accessToken: Secret): Promise<string> {
     // Construct the artifactory module
     const client = dag.artifactory(accessToken, instanceUrl);
 

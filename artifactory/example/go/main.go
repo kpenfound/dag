@@ -11,7 +11,7 @@ import (
 type Example struct{}
 
 // Upload an artifact with evidence
-func (m *Example) Artifactory_UploadArtifactWithEvidence(
+func (m *Example) Artifactory(
 	ctx context.Context,
 	instanceURL string,
 	accessToken *dagger.Secret,
