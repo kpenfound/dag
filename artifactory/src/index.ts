@@ -142,7 +142,7 @@ export class Artifactory {
     }
     // --markdown
     if (traceUrl) {
-      const markdown = `![Dagger Logo](https://framerusercontent.com/images/o2iTj7aRG3Pa4dbMMJRcU7WXLYM.webp)\n## View this run on Dagger Cloud\n\n[Dagger Cloud Trace](${traceUrl})`;
+      const markdown = `## View the trace on Dagger Cloud\n\n[Dagger Cloud Trace](${traceUrl})`;
       cli = cli.withNewFile("/daggerCloud.md", markdown);
       args.push("--markdown", "/daggerCloud.md");
     }
