@@ -1,0 +1,14 @@
+{
+  "name": "artifactory",
+  "engineVersion": "v0.18.14",
+  "sdk": {
+    "source": "typescript"
+  },
+  "dependencies": [
+    {
+      "name": "jfrogcli",
+      "source": "github.com/vbehar/daggerverse/jfrogcli@v0.14.8",
+      "pin": "82f5c55fd5005e87a71fdb1da7f3509d37eb2f34"
+    }
+  ]
+}
