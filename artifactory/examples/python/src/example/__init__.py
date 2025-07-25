@@ -1,16 +1,37 @@
 """A generated module for Example functions
-
-This module has been generated via dagger init and serves as a reference to
-basic module structure as you get started with Dagger.
-
-Two functions have been pre-created. You can modify, delete, or add to them,
-as needed. They demonstrate usage of arguments and return types using simple
-echo and grep commands. The functions can be called from the dagger CLI or
-from one of the SDKs.
-
-The first line in this comment block is a short description line and the
-rest is a long description with more detail on the module's purpose or usage,
-if appropriate. All modules should have a short description.
 """
 
-from .main import Example as Example
+import time
+import dagger
+from dagger import dag, function, object_type
+
+@object_type
+class Example:
+    @function
+    async def artifactory(
+        self,
+        instance_url: str,
+        access_token: dagger.Secret,
+    ) -> str:
+        """Upload an artifact with evidence"""
+
+        # Construct the artifactory module
+        client = dag.artifactory(access_token, instance_url)
+
+        # Upload an artifact
+        artifact = dag.http("https://github.com/dagger/dagger/releases/download/v0.18.13/dagger_v0.18.13_linux_amd64.tar.gz")
+        artifact_path = "generic-repo/dagger_v0.18.13_linux_amd64.tar.gz"
+        upload_output = await client.upload(artifact, artifact_path)
+
+        # Wait a moment for upload to process
+        time.sleep(1)
+
+        # Upload evidence for the artifact
+        predicate = dag.current_module().source().file("./test_predicate.json")
+        predicate_type = "https://in-toto.io/Statement/v1"
+        key = dag.current_module().source().file("./private.pem")
+        key_alias = "OtherKey"
+        trace_url = await dag.cloud().trace_url()
+        create_evidence_output = await client.create_evidence(predicate, predicate_type, key, key_alias=key_alias, subject_repo_path=artifact_path, trace_url=trace_url)
+
+        return upload_output + "\n" + create_evidence_output
