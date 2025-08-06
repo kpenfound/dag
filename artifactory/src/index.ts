@@ -79,6 +79,10 @@ export class Artifactory {
      */
     key: File,
     /**
+     * name of the provider that created the evidence
+     */
+    providerId: string = "dagger",
+    /**
      * key alias for a public key that exists in your Artifactory instance to validate the signature
      */
     keyAlias?: string,
@@ -139,6 +143,9 @@ export class Artifactory {
     // --key-alias
     if (keyAlias) {
       args.push("--key-alias", keyAlias);
+    }
+    if (providerId) {
+      args.push("--provider-id", providerId);
     }
     // --markdown
     if (traceUrl) {
