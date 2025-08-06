@@ -46,7 +46,7 @@ class FirecrawlDag:
         self,
         url: Annotated[str, Doc("The URL to scrape.")],
     ) -> str:
-        """Scrape a signle webpage and return the content in markdown format."""
+        """Scrape a single webpage and return the content in markdown format."""
         app = FirecrawlApp(api_key=await self.api_key.plaintext())
 
         # Scrape a website:
