@@ -7,7 +7,7 @@ type Yarn {
   """
   The Node image to use
   """
-  pub nodeImage: Container! = container.from("node:25-alpine").withExec(["npm", "install", "-g", "yarn"])
+  pub nodeImage: Container! = container.from("node:25-alpine")
 
   """
   Build the project
