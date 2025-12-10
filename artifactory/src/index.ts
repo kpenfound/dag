@@ -48,6 +48,14 @@ export class Artifactory {
      * extra arguments for jf cli
      */
     extraFlags?: string[],
+    /**
+     * key to sign dagger evidence
+     */
+    evidenceKey?: File,
+    /**
+     * key alias for evidence signing key
+     */
+    evidenceKeyAlias?: string,
   ): Promise<string> {
     // assemble execution container
     let cli = await this.cli();
@@ -56,6 +64,34 @@ export class Artifactory {
     let args = ["jf", "rt", "u", "/artifact", targetPath];
     if (extraFlags) {
       args.push(...extraFlags);
+    }
+
+    if (evidenceKey) {
+      // automatically attach evidence from dagger cloud trace
+      const uploadOutput = await cli.withExec(args).stdout();
+      const traceUrl = await dag.cloud().traceURL();
+
+      // figure out what kind of artifact this is
+      let predicate = dag.file("foo", "bar");
+      let predicateType = "bar";
+      const evidenceOut = await this.createEvidence(
+        predicate,
+        predicateType,
+        evidenceKey,
+        "dagger", // provider-id
+        evidenceKeyAlias,
+        targetPath,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        traceUrl,
+      );
+      return uploadOutput + evidenceOut;
     }
 
     return cli.withExec(args).stdout();
