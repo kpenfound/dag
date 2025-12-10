@@ -22,7 +22,9 @@ type Yarn {
   Test the project
   """
   pub test: Void @check {
-    base.withExec(["yarn", "run", "test"]).
+    base
+    .withExec(["yarn", "workspace", "jest-environment-node", "test"])
+    .withExec(["yarn", "run", "test"]).
     sync
 
     null
