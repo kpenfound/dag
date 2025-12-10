@@ -1,0 +1,48 @@
+type Yarn {
+  """
+  The source directory for the project.
+  """
+  pub source: Directory! @defaultPath(path: "/")
+
+  """
+  The Node image to use
+  """
+  pub nodeImage: Container! = container.from("node:25-alpine").withExec(["corepack", "enable"])
+
+  """
+  Build the project
+  """
+  pub build: Changeset! {
+    base.withExec(["yarn", "run", "build"]).
+    directory("/src").
+    changes(source)
+  }
+
+  """
+  Test the project
+  """
+  pub test: Void @check {
+    base.withExec(["yarn", "run", "test"]).
+    sync
+
+    null
+  }
+
+  """
+  Lint the project
+  """
+  pub lint: Void @check {
+    base.withExec(["yarn", "run", "lint"]).
+    sync
+
+    null
+  }
+
+  let base: Container! {
+    nodeImage.
+      withMountedCache("/root/.npm", cacheVolume("node-modules")).
+      withDirectory("/src", source).
+      withWorkdir("/src").
+      withExec(["yarn", "install"])
+  }
+}
