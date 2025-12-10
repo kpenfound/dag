@@ -23,6 +23,7 @@ export class Playwright {
       .from("node:18")
       .withWorkdir("/src")
       .withDirectory("/src", source)
+      .withEnvVariable("CI", "true")
       .withExec(["npm", "ci"])
       .withExec(["npx", "playwright", "install", "--with-deps"])
       .withExec(["npx", "playwright", "test"])
