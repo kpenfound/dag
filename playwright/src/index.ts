@@ -1,7 +1,14 @@
 /**
  * A generated module for playwright functions
  */
-import { dag, argument, Directory, object, func } from "@dagger.io/dagger";
+import {
+  dag,
+  argument,
+  Directory,
+  object,
+  func,
+  check,
+} from "@dagger.io/dagger";
 
 @object()
 export class Playwright {
@@ -9,7 +16,8 @@ export class Playwright {
    * Runs the playwright tests
    */
   @func()
-  test(@argument({ defaultPath: "/" }) source: Directory): Promise<String> {
+  @check()
+  test(@argument({ defaultPath: "/" }) source: Directory): Promise<string> {
     return dag
       .container()
       .from("node:18")
