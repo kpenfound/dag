@@ -19,7 +19,7 @@ export class Playwright {
   @check()
   test(
     @argument({ defaultPath: "/" }) source: Directory,
-    testCommand: string[] = ["npx", "playwright", "test"],
+    task: string = "test:e2e",
   ): Promise<string> {
     return dag
       .container()
@@ -29,7 +29,7 @@ export class Playwright {
       .withEnvVariable("CI", "true")
       .withExec(["npm", "ci"])
       .withExec(["npx", "playwright", "install", "--with-deps"])
-      .withExec(testCommand)
+      .withExec(["npm", "run", task])
       .stdout();
     // .file("playwright-report")
     // .contents();
