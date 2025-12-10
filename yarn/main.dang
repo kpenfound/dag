@@ -21,10 +21,13 @@ type Yarn {
   """
   Test the project
   """
-  pub test: Void @check {
+  pub test(workspace: String! = ""): Void @check {
+    let cmd = ["yarn", "test"]
+    if(workspace != "") {
+      cmd = ["yarn", workspace, "test"]
+    }
     base
-    .withExec(["yarn", "workspace", "jest-environment-node", "test"])
-    .withExec(["yarn", "run", "test"]).
+    .withExec(cmd).
     sync
 
     null
