@@ -48,6 +48,7 @@ type Yarn {
       withMountedCache("/root/.npm", cacheVolume("node-modules")).
       withDirectory("/src", source).
       withWorkdir("/src").
+      withEnvVariable("CI", "true").
       withExec(["yarn", "install"])
   }
 }
