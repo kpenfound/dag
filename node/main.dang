@@ -1,0 +1,79 @@
+type Node {
+  """
+  The source directory for the project.
+  """
+  pub source: Directory! @defaultPath(path: "/") @ignorePatterns(patterns: ["**/node_modules", "/dist", "/build"])
+
+  """
+  The base image to use.
+  """
+  pub baseImageAddress: String! = "node:25-alpine"
+
+  """
+  The package manager to use.
+  """
+  pub packageManager: String! = "npm"
+
+  """
+  Install all required packages
+  """
+  pub withInstallAll(ctr: Container!): Container! {
+    ctr.withExec([packageManager, "install"])
+  }
+
+  """
+  Install a specific package
+  """
+  pub withInstallPackage(ctr: Container!, package: String!): Container! {
+    let installPackage = [packageManager, "install", package]
+    # yarn uses add instead of install
+    if (packageManager == "yarn") {
+      installPackage = [packageManager, "add", package]
+    }
+
+    ctr.withExec(installPackage)
+  }
+
+  """
+  Install a local package from a Directory
+  """
+  pub withInstallLocalPackage(ctr: Container!, package: Directory!): Container! {
+    let name = "/" + package.digest
+    # install the local package
+    let installPackage = [packageManager, "install", "-D", name]
+    # yarn uses add instead of install
+    if (packageManager == "yarn") {
+      installPackage = [packageManager, "add", "--dev", name]
+    }
+
+    # pnpm needs -w
+    if (packageManager == "pnpm") {
+      installPackage = [packageManager, "install", "-w", "-D", name]
+    }
+
+    ctr.withMountedDirectory(name, package).withExec(installPackage)
+  }
+
+  """
+  Runtime container for node
+  """
+  pub base: Container! {
+    # set cache variables for all supported package managers
+    let base = container.from(baseImageAddress).
+      withMountedCache("/root/.packages", cacheVolume("node-toolchain-packages")).
+      withEnvVariable("npm_config_cache", "/root/.packages").
+      withEnvVariable("YARN_CACHE_FOLDER", "/root/.packages").
+      withEnvVariable("PNPM_HOME", "/root/.packages").
+      withEnvVariable("BUN_INSTALL_CACHE_DIR", "/root/.packages")
+
+    if (packageManager == "pnpm" and baseImageAddress.contains("node:")) {
+      base = base.withExec(["corepack", "enable"])
+    }
+
+    base.
+      withDirectory("/src", source).
+      withWorkdir("/src").
+      withEnvVariable("CI", "true").
+      withExec([packageManager, "install"])
+  }
+}

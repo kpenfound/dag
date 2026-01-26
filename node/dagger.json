@@ -1,0 +1,7 @@
+{
+  "name": "node",
+  "engineVersion": "v0.19.10",
+  "sdk": {
+    "source": "github.com/vito/dang/dagger-sdk"
+  }
+}
