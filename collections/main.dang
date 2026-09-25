@@ -1,0 +1,301 @@
+# collections: an agent that migrates Dagger modules to collections — keyed
+# dimensions, batch functions, deltas.
+#
+# The procedure lives in the dagger-collections-migration skill shipped beside
+# this module (skills/<name>/SKILL.md) and is installed with withSkills, the
+# tui-qa/engine-lab pattern from dagger/dagger. The engine already serves the
+# dang-language and dang-dagger-modules skills, so the agent can read those
+# too without any wiring here.
+#
+# Editing is left to whatever editor tools the session already carries; this
+# module adds the things a migration needs that an editor can't do:
+#
+#   * survey: a cheap static inventory of a module tree — module roots,
+#     list-of-object fields, checks and generators, existing collections.
+#   * migrateModule: upgrade a legacy dagger.json module to
+#     dagger-module.toml with `dagger module migrate`, returned as a
+#     Changeset so the tool layer applies it to the workspace.
+#   * dagger: run the dagger CLI against the current workspace, for the
+#     skill's verification loop (`dagger list`, `dagger check -l -f=cli`,
+#     filtered `dagger check --progress=plain`).
+
+# Tail-truncate command output to keep tool results context-friendly.
+let tailLines = 200
+
+# Last `lines` lines of s, with a truncation marker when shortened.
+let tail(s: String!, lines: Int! = tailLines): String! {
+  let all = s.split("\n")
+  if (all.length <= lines) {
+    s
+  } else {
+    let marker = "… (" + toString(all.length - lines) + " earlier lines truncated) …"
+    marker + "\n" + all.takeLast(lines).join("\n")
+  }
+}
+
+# The workspace as the nested CLI should see it: the live tree, including the
+# agent's pending edits, new files and deletions, with the checkout's real
+# .git grafted back in (the workspace snapshot carries none). Non-git
+# workspaces get the tree alone.
+let workspaceTree(ws: Workspace!): Directory! {
+  let tree = ws.directory("/")
+  let withGit = {
+    let checkout = ws.git.head.tree(discardGitDir: false, depth: 0, includeTags: true)
+    tree.withDirectory(".git", checkout.directory(".git")).sync
+  } rescue {
+    e: Error => tree
+  }
+  withGit
+}
+
+# Search hits as "path:line: text". Search paths come back workspace-relative
+# but sometimes ./-prefixed; normalize.
+let formatHit(filePath: String!, lineNumber: Int!, matchedLines: String!): String! {
+  filePath.trimPrefix("./") + ":" + toString(lineNumber) + ": " + matchedLines.trimSpace
+}
+
+let section(title: String!, lines: [String!]!): String! {
+  let body = if (lines.length == 0) { "  (none)" } else {
+    lines.map { l => "  " + l }.join("\n")
+  }
+  title + " (" + toString(lines.length) + "):\n" + body
+}
+
+"""
+Migrate Dagger modules to collections: keyed dimensions, batch functions and
+deltas.
+"""
+type Collections {
+  # The skills shipped with this module, installed onto the agent's LLM so the
+  # model can read the full procedure with ReadSkill.
+  let skills: Directory! = currentModule.source.directory("skills")
+
+  # Image providing the CLI for the dagger tool; "" means the published engine
+  # image matching this engine.
+  let engineImage: String! = ""
+
+  new(
+    """
+    Image whose /usr/local/bin/dagger the dagger tool runs. Defaults to the
+    published engine image for this engine's version; set it when running a
+    dev engine, which has no published image.
+    """
+    engineImage: String! = "",
+  ) {
+    self.engineImage = engineImage
+    self
+  }
+
+  """
+  Compose the collections migration tools and skill onto a base LLM.
+  """
+  agent(base: LLM!): LLM! @agent {
+    base
+      .withTools(currentNode)
+      .withSkills(skills)
+      .withSystemPrompt(systemPrompt)
+  }
+
+  """
+  Inventory a module tree for a collections migration: module roots and
+  their engine versions, fields returning lists of objects, checks and
+  generators, and existing collections. Static search only; nothing is built
+  or run.
+  """
+  survey(
+    ws: Workspace!,
+    """
+    Directory to survey, relative to the workspace cwd.
+    """
+    path: String! = ".",
+  ): String! {
+    let roots = ws.findRoots(
+      start: path,
+      markers: ["dagger-module.toml", "dagger.json"],
+      exclude: ["**/node_modules/**", "**/.git/**"],
+    )
+
+    # Lists of object types: Dang/GraphQL [Foo!]!, Go []*Foo, Python
+    # list[Foo], TypeScript Foo[]. Lists of scalars are keys, not candidates.
+    let lists = searchLines(ws, path, `\[[A-Z]\w*!?\]|\[\]\*?[A-Z]\w*|list\[[A-Z]\w*\]|\b[A-Z]\w*\[\]`).reject { l =>
+      l.containsMatch(`\[(String|Int|Float|Boolean|ID|JSON)!?\]|\[\]\*?(String|Int|Float|Boolean)\b|list\[(str|int|float|bool)\]`)
+    }
+
+    [
+      section("Module roots", roots),
+      section("Engine versions (collections need v1.0.0-beta.15; a dagger.json is legacy: migrateModule it)", searchLines(
+        ws,
+        path,
+        `engineVersion`,
+        globs: ["dagger.json", "dagger-module.toml"],
+      )),
+      section("Checks and generators", searchLines(ws, path, `@check\b|@generate\b|\+check\b|\+generate\b`)),
+      section("Existing collections", searchLines(ws, path, `@collection\b|@keys\b|@get\b|CollectionDelta`)),
+      section("Fields returning lists of objects", lists),
+    ].join("\n\n")
+  }
+
+  """
+  Run the dagger CLI against the current workspace, including your pending
+  edits. Use it to verify a migration: `list <collection-type>`,
+  `check -l --all -f=cli`, `check --help` for the selector flags in effect,
+  and filtered `check --progress=plain` runs. Output is
+  truncated to the last 200 lines; a nonzero exit is reported, not raised.
+  """
+  dagger(
+    ws: Workspace!,
+    """
+    Arguments after "dagger", e.g. ["check", "-l", "--all", "-f=cli"]. Don't
+    pass -m: it rejects module and dimension flags.
+    """
+    args: [String!]!,
+    """
+    Directory to run in, relative to the workspace root.
+    """
+    path: String! = ".",
+  ): String! @cache(policy: FunctionCachePolicy.Never) {
+    report(args, cli(ws, args, path))
+  }
+
+  """
+  Upgrade a legacy module (dagger.json, no dagger-module.toml) to
+  dagger-module.toml with `dagger module migrate`. Returns the changes, which
+  are applied to the workspace. Collections need the new format: legacy
+  engines can't run them, so the legacy config is not kept.
+  """
+  migrateModule(
+    ws: Workspace!,
+    """
+    Module directory holding the dagger.json, relative to the workspace root.
+    """
+    path: String!,
+  ): Changeset! @cache(policy: FunctionCachePolicy.Never) {
+    let dir = path.trimPrefix("/").trimPrefix("./").trimSuffix("/")
+    # Glob patterns are workspace-root-relative, with no leading "./" or "/".
+    let prefix = if (dir == "" or dir == ".") { "" } else { dir + "/" }
+    if (ws.glob(prefix + "dagger-module.toml").length > 0) {
+      raise `"${path}" already has a dagger-module.toml: not a legacy module`
+    }
+    if (ws.glob(prefix + "dagger.json").length == 0) {
+      raise `no dagger.json in "${path}": nothing to migrate`
+    }
+    let args = ["module", "migrate", "-y", if (prefix == "") { "." } else { dir }]
+    let ctr = cli(ws, args, ".")
+    if (ctr.exitCode != 0) {
+      raise report(args, ctr)
+    }
+    let before = workspaceTree(ws).withoutDirectory(".git")
+    ctr.directory("/work").withoutDirectory(".git").changes(before)
+  }
+
+  # A container that has run the dagger CLI with args in path, over a copy of
+  # the workspace at /work. Nonzero exits are kept, not raised.
+  let cli(ws: Workspace!, args: [String!]!, path: String!): Container! {
+    # The engine image ships the CLI, so it always matches this engine.
+    # Drop build metadata (v1.0.0-beta.14+06660c3c): not a valid tag.
+    let image = if (engineImage != "") { engineImage } else {
+      "registry.dagger.io/engine:" + version.replaceMatches(`\+.*$`, "")
+    }
+    container
+      .from(image)
+      .withDirectory("/work", workspaceTree(ws))
+      .withWorkdir("/work/" + path.trimPrefix("/"))
+      .withEnvVariable("DAGGER_NO_NAG", "1")
+      # Bust the exec cache: a replay would report a stale workspace.
+      .withEnvVariable("COLLECTIONS_NONCE", Random.string)
+      .withExec(
+        ["dagger"] + args,
+        expect: ReturnType.ANY,
+        experimentalPrivilegedNesting: true,
+      )
+  }
+
+  # The command, its exit code and the tail of its output, for the model.
+  let report(args: [String!]!, ctr: Container!): String! {
+    let out = [ctr.stdout.trimSpace, ctr.stderr.trimSpace].filter { s => s != "" }.join("\n")
+    "$ dagger " + args.join(" ") + "\nexit code: " + toString(ctr.exitCode) + "\n" + tail(out)
+  }
+
+  # Search hits under path in module source files, minus generated bindings.
+  let searchLines(
+    ws: Workspace!,
+    path: String!,
+    pattern: String!,
+    globs: [String!]! = ["*.dang", "*.go", "*.py", "*.ts"],
+  ): [String!]! {
+    ws.search(
+      paths: [path],
+      globs: globs,
+      pattern: pattern,
+      skipIgnored: true,
+    ).{{filePath, lineNumber, matchedLines}}.map { h =>
+      formatHit(h.filePath, h.lineNumber, h.matchedLines)
+    }.reject { l =>
+      # Generated SDK bindings are not the module's own code.
+      l.containsMatch(`(^|/)(internal/dagger|sdk)/|dagger\.gen\.go`)
+    }
+  }
+
+  let systemPrompt: String! = """
+    You migrate Dagger modules to collections: fields that return lists of
+    keyed objects become @collection types, aggregate checks become batch
+    functions, and nested work gets one hierarchy plus a delta.
+
+    The `dagger-collections-migration` skill is the procedure. Read it in full
+    with ReadSkill before you change anything, and go back to it whenever you
+    are unsure; its Gotchas section is where most migration time goes. For a
+    module written in Dang, also read `dang-dagger-modules` and
+    `dang-language` before editing .dang files.
+
+    Work in this order:
+
+    1. Survey. Run `survey` on the module, then read its source. Note each
+       list-of-object field, which items carry checks or generators, and any
+       aggregate "run everything" checks.
+    2. Baseline. Before editing, record what exists now:
+       `dagger(["check", "-l", "--all", "-f=cli"])`, plus `dagger(["list"])`
+       if the module already has collections. The module must be installed in
+       the workspace for these to see it; don't use -m, which rejects the
+       selector flags.
+    3. Plan. Decide per field, using the skill's "When a field should become a
+       collection": the key, what `get` needs stored (never a Workspace),
+       which batch functions replace which aggregates, and whether a nested
+       dimension needs a delta. Name things for the CLI: a check's name is its
+       flag and a batch shares it (`test` over `run`), the `@get` function is
+       named for the item (`module(path:)`), and item type names should be
+       distinctive, since they become dimension flags. State the plan before
+       editing.
+    4. Migrate, following the skill's steps. Start with the config: if the
+       module has a dagger.json and no dagger-module.toml, it is a legacy
+       module; upgrade it with `migrateModule` first. Legacy engines can't run
+       collections, so don't try to keep dagger.json. Then set engineVersion
+       in dagger-module.toml to v1.0.0-beta.15; collections don't exist before
+       it. Keep key discovery cheap (no
+       containers), keys unique and deterministically ordered, back-references
+       private, and delete aggregates a batch replaces.
+    5. Verify, following "Verifying a migration": keys listed, each check
+       listed once, a filtered run with selector flags (`--go --test
+       --go-module=…`) showing one batch call and no item calls, and the batch
+       seeing only the selected keys.
+    6. Rewrite docstrings for where they now appear: the item check's labels
+       `check -l` (write it for one item), the `@get` docstring describes each
+       item in `dagger list`, and wording should match sibling modules.
+    7. Update callers, tests, docs and CI for the new check addresses and
+       selector flags.
+
+    The dagger tool runs the CLI matching this session's engine. Collections
+    need v1.0.0-beta.15, which is unreleased: on a released engine the
+    migrated module won't load at all. That is expected, not a migration bug;
+    keep the bump, report that verification needs a dev engine, and don't
+    work around it. If something the skill uses doesn't exist here
+    (older releases lack `dagger list`, `-f=cli` and the selector flags), say
+    so and verify with what does: `check -l --all`, and filtered `check` runs
+    by check address (`go/modules/test`).
+
+    Finish with a short report: what changed, the config upgrade and
+    engineVersion bump (every consumer now needs a beta.15 engine), old to new check addresses and the
+    flags that select them, and
+    anything you could not verify and why. A migration that lists correctly
+    but was never run filtered is not verified; say so.
+  """
+}

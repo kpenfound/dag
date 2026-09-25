@@ -1,0 +1,8 @@
+[modules.dang-sdk]
+source = "dagger.io/sdk/dang"
+
+[sdks.dang]
+module = "dang-sdk"
+
+[sdks.dang.scopes.collections]
+is-module = true
